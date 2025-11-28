@@ -156,6 +156,39 @@ defmodule Langfuse.Client do
   end
 
   @doc """
+  Gets a prompt by name.
+
+  Returns the prompt with optional version or label filtering. If neither
+  version nor label is specified, returns the latest production version.
+
+  For cached prompt fetching with variable compilation, use `Langfuse.Prompt.get/2`.
+
+  ## Options
+
+    * `:version` - Specific version number to fetch
+    * `:label` - Label to fetch (e.g., "production", "latest")
+
+  ## Examples
+
+      Langfuse.Client.get_prompt("my-prompt")
+      #=> {:ok, %{"name" => "my-prompt", "version" => 1, "prompt" => "...", ...}}
+
+      Langfuse.Client.get_prompt("my-prompt", version: 2)
+
+      Langfuse.Client.get_prompt("my-prompt", label: "production")
+
+  """
+  @spec get_prompt(String.t(), keyword()) :: response()
+  def get_prompt(name, opts \\ []) do
+    params =
+      []
+      |> maybe_add_param(:version, opts[:version])
+      |> maybe_add_param(:label, opts[:label])
+
+    get("/api/public/v2/prompts/#{URI.encode(name)}", params)
+  end
+
+  @doc """
   Gets a dataset by name.
 
   ## Examples

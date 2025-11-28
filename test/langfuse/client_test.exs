@@ -499,6 +499,57 @@ defmodule Langfuse.ClientTest do
       assert result["version"] == 2
     end
 
+    test "get_prompt/2 fetches prompt by name", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/my-prompt", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(
+          200,
+          Jason.encode!(%{
+            name: "my-prompt",
+            version: 1,
+            type: "text",
+            prompt: "Hello {{name}}",
+            labels: ["production"],
+            tags: []
+          })
+        )
+      end)
+
+      assert {:ok, result} = Client.get_prompt("my-prompt")
+      assert result["name"] == "my-prompt"
+      assert result["prompt"] == "Hello {{name}}"
+    end
+
+    test "get_prompt/2 fetches specific version", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/my-prompt", fn conn ->
+        assert conn.query_string =~ "version=2"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{name: "my-prompt", version: 2}))
+      end)
+
+      assert {:ok, result} = Client.get_prompt("my-prompt", version: 2)
+      assert result["version"] == 2
+    end
+
+    test "get_prompt/2 fetches by label", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/my-prompt", fn conn ->
+        assert conn.query_string =~ "label=staging"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(
+          200,
+          Jason.encode!(%{name: "my-prompt", version: 3, labels: ["staging"]})
+        )
+      end)
+
+      assert {:ok, result} = Client.get_prompt("my-prompt", label: "staging")
+      assert result["labels"] == ["staging"]
+    end
+
     test "get_dataset_run/2 fetches run", %{bypass: bypass} do
       Bypass.expect_once(bypass, "GET", "/api/public/datasets/my-dataset/runs/run-1", fn conn ->
         conn
