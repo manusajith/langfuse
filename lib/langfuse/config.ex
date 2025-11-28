@@ -184,6 +184,23 @@ defmodule Langfuse.Config do
     get(:debug)
   end
 
+  @doc """
+  Reloads configuration from application environment.
+
+  This is primarily useful for testing when you need to change
+  configuration values at runtime.
+
+  ## Examples
+
+      Application.put_env(:langfuse, :host, "https://custom.langfuse.com")
+      Langfuse.Config.reload()
+
+  """
+  @spec reload() :: :ok
+  def reload do
+    GenServer.call(__MODULE__, :reload)
+  end
+
   @impl true
   def init(_opts) do
     config = load_config()
@@ -193,6 +210,11 @@ defmodule Langfuse.Config do
   @impl true
   def handle_call(:get, _from, config) do
     {:reply, config, config}
+  end
+
+  def handle_call(:reload, _from, _config) do
+    new_config = load_config()
+    {:reply, :ok, new_config}
   end
 
   defp load_config do

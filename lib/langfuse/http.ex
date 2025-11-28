@@ -155,9 +155,9 @@ defmodule Langfuse.HTTP do
         method: method,
         url: url,
         auth: {:basic, "#{config.public_key}:#{config.secret_key}"},
-        retry: retry_options(config),
         receive_timeout: 30_000
       ]
+      |> Keyword.merge(retry_options(config))
       |> Keyword.merge(opts)
       |> Req.request()
       |> handle_response()
@@ -178,8 +178,9 @@ defmodule Langfuse.HTTP do
 
   defp retry_options(config) do
     [
+      retry: :transient,
       max_retries: config.max_retries,
-      delay: &exponential_backoff/1,
+      retry_delay: &exponential_backoff/1,
       retry_log_level: :warning
     ]
   end
@@ -187,7 +188,7 @@ defmodule Langfuse.HTTP do
   defp exponential_backoff(attempt) do
     base_delay = 1000
     max_delay = 30_000
-    delay = base_delay * Integer.pow(2, attempt - 1)
+    delay = base_delay * Integer.pow(2, attempt)
     jitter = :rand.uniform(500)
     min(delay + jitter, max_delay)
   end
