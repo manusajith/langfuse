@@ -1,5 +1,5 @@
 defmodule Langfuse.GenerationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Langfuse.{Generation, Trace, Span}
 
@@ -133,6 +133,62 @@ defmodule Langfuse.GenerationTest do
       gen = Generation.new(trace, name: "chat")
 
       assert Generation.get_trace_id(gen) == "trace-123"
+    end
+  end
+
+  describe "event capture" do
+    test "new/2 sends generation-create event" do
+      {_gen, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Generation.new(trace, name: "llm-call", model: "gpt-4")
+        end)
+
+      gen_events = Enum.filter(events, &(&1.type == "generation-create"))
+      assert length(gen_events) == 1
+      assert hd(gen_events).body.name == "llm-call"
+      assert hd(gen_events).body.model == "gpt-4"
+    end
+
+    test "update/2 sends generation-update event" do
+      {_gen, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          gen = Generation.new(trace, name: "llm-call")
+          Generation.update(gen, output: %{content: "response"})
+        end)
+
+      update_events = Enum.filter(events, &(&1.type == "generation-update"))
+      assert length(update_events) == 1
+      assert update_events |> hd() |> Map.get(:body) |> Map.get(:output) == %{content: "response"}
+    end
+
+    test "end_generation/1 sends generation-update event with end_time" do
+      {_gen, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          gen = Generation.new(trace, name: "llm-call")
+          Generation.end_generation(gen)
+        end)
+
+      update_events = Enum.filter(events, &(&1.type == "generation-update"))
+      assert length(update_events) == 1
+      assert update_events |> hd() |> Map.get(:body) |> Map.has_key?(:endTime)
+    end
+
+    test "events include required fields" do
+      {_gen, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Generation.new(trace, name: "llm-call")
+        end)
+
+      gen_event = Enum.find(events, &(&1.type == "generation-create"))
+
+      assert is_binary(gen_event.id)
+      assert is_binary(gen_event.timestamp)
+      assert gen_event.type == "generation-create"
+      assert is_map(gen_event.body)
     end
   end
 end

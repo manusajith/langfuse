@@ -1,5 +1,5 @@
 defmodule Langfuse.SpanTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Langfuse.{Span, Trace}
 
@@ -115,6 +115,61 @@ defmodule Langfuse.SpanTest do
       span = Span.new(trace, name: "test-span")
 
       assert Span.get_trace_id(span) == "trace-123"
+    end
+  end
+
+  describe "event capture" do
+    test "new/2 sends span-create event" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "test-span")
+        end)
+
+      span_events = Enum.filter(events, &(&1.type == "span-create"))
+      assert length(span_events) == 1
+      assert hd(span_events).body.name == "test-span"
+    end
+
+    test "update/2 sends span-update event" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          span = Span.new(trace, name: "test-span")
+          Span.update(span, output: %{result: "done"})
+        end)
+
+      update_events = Enum.filter(events, &(&1.type == "span-update"))
+      assert length(update_events) == 1
+      assert update_events |> hd() |> Map.get(:body) |> Map.get(:output) == %{result: "done"}
+    end
+
+    test "end_span/1 sends span-update event with end_time" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          span = Span.new(trace, name: "test-span")
+          Span.end_span(span)
+        end)
+
+      update_events = Enum.filter(events, &(&1.type == "span-update"))
+      assert length(update_events) == 1
+      assert update_events |> hd() |> Map.get(:body) |> Map.has_key?(:endTime)
+    end
+
+    test "events include required fields" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "test-span")
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+
+      assert is_binary(span_event.id)
+      assert is_binary(span_event.timestamp)
+      assert span_event.type == "span-create"
+      assert is_map(span_event.body)
     end
   end
 end
