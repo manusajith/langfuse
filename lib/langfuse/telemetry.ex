@@ -125,7 +125,7 @@ defmodule Langfuse.Telemetry do
     :telemetry.attach_many(
       "langfuse-default-logger",
       events(),
-      &log_event/4,
+      &__MODULE__.handle_event/4,
       %{level: level}
     )
   end
@@ -144,7 +144,8 @@ defmodule Langfuse.Telemetry do
     :telemetry.detach("langfuse-default-logger")
   end
 
-  defp log_event(event, measurements, metadata, %{level: level}) do
+  @doc false
+  def handle_event(event, measurements, metadata, %{level: level}) do
     require Logger
     event_name = Enum.join(event, ".")
     Logger.log(level, "[Langfuse] #{event_name} #{inspect(measurements)} #{inspect(metadata)}")
