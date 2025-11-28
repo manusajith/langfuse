@@ -25,6 +25,8 @@ defmodule Langfuse.HTTP do
   use `Langfuse.Client` instead.
   """
 
+  @behaviour Langfuse.HTTPBehaviour
+
   alias Langfuse.Config
 
   @ingestion_path "/api/public/ingestion"
@@ -38,6 +40,7 @@ defmodule Langfuse.HTTP do
 
   Used internally by `Langfuse.Ingestion` to flush event batches.
   """
+  @impl true
   @spec ingest(list(map())) :: response()
   def ingest(events) when is_list(events) do
     post(@ingestion_path, %{batch: events})
@@ -54,6 +57,7 @@ defmodule Langfuse.HTTP do
     * `:label` - Label to fetch (e.g., "production")
 
   """
+  @impl true
   @spec get_prompt(String.t(), keyword()) :: response()
   def get_prompt(name, opts \\ []) do
     params =
@@ -69,6 +73,7 @@ defmodule Langfuse.HTTP do
 
   Returns `{:error, :not_configured}` if credentials are not set.
   """
+  @impl true
   @spec get(String.t(), keyword()) :: response()
   def get(path, params \\ []) do
     config = Config.get()
@@ -85,6 +90,7 @@ defmodule Langfuse.HTTP do
 
   Returns `{:error, :not_configured}` if credentials are not set.
   """
+  @impl true
   @spec post(String.t(), map()) :: response()
   def post(path, body) do
     config = Config.get()
