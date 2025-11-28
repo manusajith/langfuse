@@ -72,6 +72,7 @@ defmodule Langfuse.Score do
     * `:comment` - Free-text comment or reasoning for the score.
     * `:id` - Custom score ID for idempotent updates.
     * `:config_id` - Reference to a score configuration in Langfuse.
+    * `:metadata` - Arbitrary metadata map for additional context.
 
   ## Examples
 
@@ -117,6 +118,7 @@ defmodule Langfuse.Score do
     |> maybe_put(:stringValue, string_value)
     |> maybe_put(:comment, opts[:comment])
     |> maybe_put(:configId, opts[:config_id])
+    |> maybe_put(:metadata, opts[:metadata])
     |> maybe_put(:environment, Langfuse.Config.get(:environment))
 
     event = %{
@@ -145,6 +147,7 @@ defmodule Langfuse.Score do
     * `:comment` - Free-text comment or reasoning.
     * `:id` - Custom score ID.
     * `:config_id` - Reference to a score configuration.
+    * `:metadata` - Arbitrary metadata map for additional context.
 
   ## Examples
 
@@ -164,11 +167,13 @@ defmodule Langfuse.Score do
       name: name,
       value: value,
       dataType: data_type_to_string(data_type),
-      source: "API"
+      source: "API",
+      sessionId: session_id
     }
     |> maybe_put(:stringValue, string_value)
     |> maybe_put(:comment, opts[:comment])
     |> maybe_put(:configId, opts[:config_id])
+    |> maybe_put(:metadata, opts[:metadata])
     |> maybe_put(:environment, Langfuse.Config.get(:environment))
 
     event = %{

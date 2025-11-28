@@ -1,7 +1,8 @@
 defmodule Langfuse.ScoreTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Langfuse.{Score, Trace, Span, Generation}
+  import Langfuse.Test.Helpers
 
   describe "create/2" do
     test "creates a numeric score on a trace" do
@@ -142,6 +143,82 @@ defmodule Langfuse.ScoreTest do
         )
 
       assert result == :ok
+    end
+  end
+
+  describe "event body verification" do
+    test "creates score with metadata" do
+      {_result, events} =
+        capture_events(fn ->
+          trace = Trace.new(name: "test-trace", id: "trace-meta")
+
+          Score.create(trace,
+            name: "quality",
+            value: 0.9,
+            metadata: %{evaluator: "gpt-4", prompt_version: 3}
+          )
+        end)
+
+      score_event = Enum.find(events, &(&1.type == "score-create"))
+      assert score_event != nil
+      assert score_event.body.metadata == %{evaluator: "gpt-4", prompt_version: 3}
+    end
+
+    test "session score includes sessionId in body" do
+      {_result, events} =
+        capture_events(fn ->
+          Score.score_session("session-456", name: "satisfaction", value: 5)
+        end)
+
+      score_event = Enum.find(events, &(&1.type == "score-create"))
+      assert score_event != nil
+      assert score_event.body.sessionId == "session-456"
+    end
+
+    test "session score includes metadata" do
+      {_result, events} =
+        capture_events(fn ->
+          Score.score_session("session-789",
+            name: "completion",
+            value: 1,
+            data_type: :boolean,
+            metadata: %{reason: "user_completed_goal"}
+          )
+        end)
+
+      score_event = Enum.find(events, &(&1.type == "score-create"))
+      assert score_event != nil
+      assert score_event.body.sessionId == "session-789"
+      assert score_event.body.metadata == %{reason: "user_completed_goal"}
+    end
+
+    test "score includes all expected fields" do
+      {_result, events} =
+        capture_events(fn ->
+          trace = Trace.new(name: "test-trace", id: "trace-full")
+
+          Score.create(trace,
+            name: "accuracy",
+            value: 0.95,
+            comment: "Very accurate",
+            id: "score-custom-id",
+            config_id: "config-123",
+            metadata: %{version: 1}
+          )
+        end)
+
+      score_event = Enum.find(events, &(&1.type == "score-create"))
+      assert score_event != nil
+
+      body = score_event.body
+      assert body.id == "score-custom-id"
+      assert body.name == "accuracy"
+      assert body.value == 0.95
+      assert body.dataType == "NUMERIC"
+      assert body.comment == "Very accurate"
+      assert body.configId == "config-123"
+      assert body.metadata == %{version: 1}
+      assert body.traceId == "trace-full"
     end
   end
 end
