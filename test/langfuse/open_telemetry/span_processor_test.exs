@@ -11,6 +11,7 @@ defmodule Langfuse.OpenTelemetry.SpanProcessorTest do
   """
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
   import Mox
 
   alias Langfuse.OpenTelemetry.SpanProcessor
@@ -118,7 +119,88 @@ defmodule Langfuse.OpenTelemetry.SpanProcessorTest do
 
   describe "force_flush/1" do
     test "calls Ingestion.flush" do
-      assert SpanProcessor.force_flush(%{}) == :ok
+      capture_log(fn ->
+        assert SpanProcessor.force_flush(%{}) == :ok
+      end)
+    end
+  end
+
+  describe "span format handling" do
+    test "handles 13-element span tuple" do
+      span = create_13_element_span()
+      assert SpanProcessor.on_end(span, %{}) == true
+    end
+
+    test "handles span with nil parent" do
+      span = create_mock_span(parent_span_id: nil)
+      assert SpanProcessor.on_end(span, %{}) == true
+    end
+
+    test "handles span with error status" do
+      span = create_mock_span(status: {:status, :error, "Something went wrong"})
+      assert SpanProcessor.on_end(span, %{}) == true
+    end
+
+    test "handles span with unset status" do
+      span = create_mock_span(status: {:status, :unset, ""})
+      assert SpanProcessor.on_end(span, %{}) == true
+    end
+
+    test "handles span with undefined status" do
+      span = create_mock_span(status: :undefined)
+      assert SpanProcessor.on_end(span, %{}) == true
+    end
+
+    test "handles span with nil status" do
+      span = create_mock_span(status: nil)
+      assert SpanProcessor.on_end(span, %{}) == true
+    end
+
+    test "handles span with llm.* attributes as generation" do
+      span =
+        create_mock_span(
+          attributes: %{
+            "llm.model_name" => "claude-3",
+            "llm.token_count.prompt" => 50
+          }
+        )
+
+      assert SpanProcessor.on_end(span, %{}) == true
+    end
+
+    test "handles span with model attribute as generation" do
+      span =
+        create_mock_span(
+          attributes: %{
+            "model" => "gpt-4"
+          }
+        )
+
+      assert SpanProcessor.on_end(span, %{}) == true
+    end
+  end
+
+  describe "filter_fn handling" do
+    test "processes span when filter_fn is nil" do
+      span = create_mock_span()
+
+      config = %{
+        enabled: true,
+        filter_fn: nil
+      }
+
+      assert SpanProcessor.on_end(span, config) == true
+    end
+
+    test "processes span when filter_fn is not a function" do
+      span = create_mock_span()
+
+      config = %{
+        enabled: true,
+        filter_fn: "invalid"
+      }
+
+      assert SpanProcessor.on_end(span, config) == true
     end
   end
 
@@ -138,5 +220,24 @@ defmodule Langfuse.OpenTelemetry.SpanProcessorTest do
 
     {trace_id, span_id, parent_span_id, name, kind, start_time, end_time, attributes, events,
      links, status, is_recording}
+  end
+
+  defp create_13_element_span(opts \\ []) do
+    trace_id = Keyword.get(opts, :trace_id, :rand.uniform(1_000_000_000_000_000))
+    span_id = Keyword.get(opts, :span_id, :rand.uniform(1_000_000_000))
+    trace_flags = Keyword.get(opts, :trace_flags, 1)
+    trace_state = Keyword.get(opts, :trace_state, [])
+    parent_span_id = Keyword.get(opts, :parent_span_id, :rand.uniform(1_000_000_000))
+    name = Keyword.get(opts, :name, "test-span-13")
+    kind = Keyword.get(opts, :kind, :internal)
+    start_time = Keyword.get(opts, :start_time, System.system_time(:nanosecond))
+    end_time = Keyword.get(opts, :end_time, System.system_time(:nanosecond) + 1_000_000)
+    attributes = Keyword.get(opts, :attributes, %{})
+    events = Keyword.get(opts, :events, [])
+    links = Keyword.get(opts, :links, [])
+    status = Keyword.get(opts, :status, {:status, :ok, ""})
+
+    {trace_id, span_id, trace_flags, trace_state, parent_span_id, name, kind, start_time,
+     end_time, attributes, events, links, status}
   end
 end

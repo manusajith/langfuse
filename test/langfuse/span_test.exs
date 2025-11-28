@@ -118,6 +118,155 @@ defmodule Langfuse.SpanTest do
     end
   end
 
+  describe "observation types" do
+    test "creates span with agent type" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "agent-span", type: :agent)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.type == "AGENT"
+    end
+
+    test "creates span with tool type" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "tool-span", type: :tool)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.type == "TOOL"
+    end
+
+    test "creates span with chain type" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "chain-span", type: :chain)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.type == "CHAIN"
+    end
+
+    test "creates span with retriever type" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "retriever-span", type: :retriever)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.type == "RETRIEVER"
+    end
+
+    test "creates span with embedding type" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "embedding-span", type: :embedding)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.type == "EMBEDDING"
+    end
+
+    test "creates span with evaluator type" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "evaluator-span", type: :evaluator)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.type == "EVALUATOR"
+    end
+
+    test "creates span with guardrail type" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "guardrail-span", type: :guardrail)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.type == "GUARDRAIL"
+    end
+
+    test "defaults to span type" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "default-span")
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.type == "SPAN"
+    end
+  end
+
+  describe "level conversions" do
+    test "creates span with debug level" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "debug-span", level: :debug)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.level == "DEBUG"
+    end
+
+    test "creates span with default level" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "default-level-span", level: :default)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.level == "DEFAULT"
+    end
+
+    test "creates span with error level" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "error-span", level: :error)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.level == "ERROR"
+    end
+
+    test "creates span with warning level" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "warning-span", level: :warning)
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.level == "WARNING"
+    end
+  end
+
+  describe "version field" do
+    test "includes version in event body" do
+      {_span, events} =
+        Langfuse.Test.Helpers.capture_events(fn ->
+          trace = Trace.new(name: "test-trace")
+          Span.new(trace, name: "versioned-span", version: "1.2.3")
+        end)
+
+      span_event = Enum.find(events, &(&1.type == "span-create"))
+      assert span_event.body.version == "1.2.3"
+    end
+  end
+
   describe "event capture" do
     test "new/2 sends span-create event" do
       {_span, events} =

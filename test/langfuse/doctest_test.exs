@@ -1,6 +1,7 @@
 defmodule Langfuse.DoctestTest do
   use ExUnit.Case, async: true
 
+  doctest Langfuse
   doctest Langfuse.Trace
   doctest Langfuse.Span
   doctest Langfuse.Generation

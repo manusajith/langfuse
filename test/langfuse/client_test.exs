@@ -1,5 +1,5 @@
 defmodule Langfuse.ClientTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Langfuse.Client
 
@@ -57,112 +57,426 @@ defmodule Langfuse.ClientTest do
     end
   end
 
-  describe "list operations with pagination" do
-    test "list_datasets/1 accepts pagination options" do
-      opts = [limit: 10, page: 2]
-      assert is_list(opts)
+  describe "with bypass" do
+    setup do
+      bypass = Bypass.open()
+
+      original_host = Application.get_env(:langfuse, :host)
+      original_public_key = Application.get_env(:langfuse, :public_key)
+      original_secret_key = Application.get_env(:langfuse, :secret_key)
+      original_max_retries = Application.get_env(:langfuse, :max_retries)
+
+      Application.put_env(:langfuse, :host, "http://localhost:#{bypass.port}")
+      Application.put_env(:langfuse, :public_key, "pk-test")
+      Application.put_env(:langfuse, :secret_key, "sk-test")
+      Application.put_env(:langfuse, :max_retries, 0)
+
+      Langfuse.Config.reload()
+
+      on_exit(fn ->
+        if original_host do
+          Application.put_env(:langfuse, :host, original_host)
+        else
+          Application.delete_env(:langfuse, :host)
+        end
+
+        if original_public_key do
+          Application.put_env(:langfuse, :public_key, original_public_key)
+        else
+          Application.delete_env(:langfuse, :public_key)
+        end
+
+        if original_secret_key do
+          Application.put_env(:langfuse, :secret_key, original_secret_key)
+        else
+          Application.delete_env(:langfuse, :secret_key)
+        end
+
+        if original_max_retries do
+          Application.put_env(:langfuse, :max_retries, original_max_retries)
+        else
+          Application.delete_env(:langfuse, :max_retries)
+        end
+
+        Langfuse.Config.reload()
+      end)
+
+      {:ok, bypass: bypass}
     end
 
-    test "list_traces/1 accepts filter options" do
-      opts = [
-        limit: 10,
-        user_id: "user-123",
-        session_id: "session-456",
-        name: "test",
-        tags: ["prod"]
-      ]
+    test "get_dataset/1 fetches dataset by name", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/datasets/my-dataset", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{name: "my-dataset", id: "ds-123"}))
+      end)
 
-      assert is_list(opts)
+      assert {:ok, dataset} = Client.get_dataset("my-dataset")
+      assert dataset["name"] == "my-dataset"
     end
 
-    test "list_sessions/1 accepts timestamp filters" do
-      opts = [
-        limit: 10,
-        from_timestamp: "2024-01-01T00:00:00Z",
-        to_timestamp: "2024-12-31T23:59:59Z"
-      ]
+    test "create_dataset/1 creates a dataset", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/api/public/v2/datasets", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
 
-      assert is_list(opts)
+        assert payload["name"] == "test-dataset"
+        assert payload["description"] == "A test dataset"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{name: "test-dataset", id: "ds-456"}))
+      end)
+
+      assert {:ok, result} =
+               Client.create_dataset(name: "test-dataset", description: "A test dataset")
+
+      assert result["name"] == "test-dataset"
     end
 
-    test "list_scores/1 accepts filter options" do
-      opts = [
-        limit: 10,
-        trace_id: "trace-123",
-        user_id: "user-456",
-        name: "quality",
-        data_type: "NUMERIC"
-      ]
+    test "list_datasets/1 returns datasets", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/datasets", fn conn ->
+        assert conn.query_string =~ "limit=10"
 
-      assert is_list(opts)
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{data: [%{name: "ds-1"}, %{name: "ds-2"}]}))
+      end)
+
+      assert {:ok, result} = Client.list_datasets(limit: 10)
+      assert result["data"] |> length() == 2
     end
 
-    test "list_observations/1 accepts filter options" do
-      opts = [
-        limit: 10,
-        trace_id: "trace-123",
-        name: "llm-call",
-        type: "GENERATION",
-        user_id: "user-456",
-        parent_observation_id: "parent-123"
-      ]
+    test "create_dataset_item/1 creates an item", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/api/public/v2/dataset-items", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
 
-      assert is_list(opts)
+        assert payload["datasetName"] == "test-ds"
+        assert payload["input"] == %{"question" => "What is AI?"}
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "item-123"}))
+      end)
+
+      assert {:ok, result} =
+               Client.create_dataset_item(
+                 dataset_name: "test-ds",
+                 input: %{question: "What is AI?"}
+               )
+
+      assert result["id"] == "item-123"
+    end
+
+    test "get_dataset_item/1 fetches item", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/dataset-items/item-123", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "item-123", input: %{}}))
+      end)
+
+      assert {:ok, item} = Client.get_dataset_item("item-123")
+      assert item["id"] == "item-123"
+    end
+
+    test "update_dataset_item/2 updates item", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "PATCH", "/api/public/v2/dataset-items/item-123", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+
+        assert payload["input"] == %{"updated" => true}
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "item-123", input: %{updated: true}}))
+      end)
+
+      assert {:ok, result} = Client.update_dataset_item("item-123", input: %{updated: true})
+      assert result["id"] == "item-123"
+    end
+
+    test "create_dataset_run/1 creates a run", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/api/public/v2/dataset-runs", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+
+        assert payload["name"] == "eval-run-1"
+        assert payload["datasetName"] == "test-ds"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "run-123", name: "eval-run-1"}))
+      end)
+
+      assert {:ok, result} =
+               Client.create_dataset_run(name: "eval-run-1", dataset_name: "test-ds")
+
+      assert result["name"] == "eval-run-1"
+    end
+
+    test "create_dataset_run_item/1 links trace to item", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/api/public/v2/dataset-run-items", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+
+        assert payload["runName"] == "eval-run-1"
+        assert payload["datasetItemId"] == "item-123"
+        assert payload["traceId"] == "trace-456"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "run-item-789"}))
+      end)
+
+      assert {:ok, result} =
+               Client.create_dataset_run_item(
+                 run_name: "eval-run-1",
+                 dataset_item_id: "item-123",
+                 trace_id: "trace-456"
+               )
+
+      assert result["id"] == "run-item-789"
+    end
+
+    test "list_score_configs/1 returns configs", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/score-configs", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{data: [%{name: "accuracy"}]}))
+      end)
+
+      assert {:ok, result} = Client.list_score_configs()
+      assert result["data"] |> length() == 1
+    end
+
+    test "get_score_config/1 fetches config", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/score-configs/cfg-123", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "cfg-123", name: "accuracy"}))
+      end)
+
+      assert {:ok, config} = Client.get_score_config("cfg-123")
+      assert config["name"] == "accuracy"
+    end
+
+    test "create_score_config/1 creates config", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/api/public/v2/score-configs", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+
+        assert payload["name"] == "quality"
+        assert payload["dataType"] == "NUMERIC"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "cfg-456", name: "quality"}))
+      end)
+
+      assert {:ok, result} = Client.create_score_config(name: "quality", data_type: "NUMERIC")
+      assert result["name"] == "quality"
+    end
+
+    test "get_trace/1 fetches trace", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/traces/trace-123", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "trace-123", name: "test-trace"}))
+      end)
+
+      assert {:ok, trace} = Client.get_trace("trace-123")
+      assert trace["id"] == "trace-123"
+    end
+
+    test "list_traces/1 returns traces with filters", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/traces", fn conn ->
+        assert conn.query_string =~ "userId=user-123"
+        assert conn.query_string =~ "limit=5"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{data: [%{id: "trace-1"}]}))
+      end)
+
+      assert {:ok, result} = Client.list_traces(user_id: "user-123", limit: 5)
+      assert result["data"] |> length() == 1
+    end
+
+    test "get_session/1 fetches session", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/sessions/session-123", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "session-123"}))
+      end)
+
+      assert {:ok, session} = Client.get_session("session-123")
+      assert session["id"] == "session-123"
+    end
+
+    test "list_sessions/1 returns sessions", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/sessions", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{data: [%{id: "sess-1"}, %{id: "sess-2"}]}))
+      end)
+
+      assert {:ok, result} = Client.list_sessions()
+      assert result["data"] |> length() == 2
+    end
+
+    test "get_score/1 fetches score", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/scores/score-123", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "score-123", value: 0.95}))
+      end)
+
+      assert {:ok, score} = Client.get_score("score-123")
+      assert score["value"] == 0.95
+    end
+
+    test "list_scores/1 returns scores", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/scores", fn conn ->
+        assert conn.query_string =~ "traceId=trace-123"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{data: [%{id: "score-1"}]}))
+      end)
+
+      assert {:ok, result} = Client.list_scores(trace_id: "trace-123")
+      assert result["data"] |> length() == 1
+    end
+
+    test "delete_score/1 deletes score", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "DELETE", "/api/public/scores/score-123", fn conn ->
+        Plug.Conn.resp(conn, 204, "")
+      end)
+
+      assert :ok = Client.delete_score("score-123")
+    end
+
+    test "get_observation/1 fetches observation", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/observations/obs-123", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "obs-123", type: "GENERATION"}))
+      end)
+
+      assert {:ok, obs} = Client.get_observation("obs-123")
+      assert obs["type"] == "GENERATION"
+    end
+
+    test "list_observations/1 returns observations", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/observations", fn conn ->
+        assert conn.query_string =~ "traceId=trace-123"
+        assert conn.query_string =~ "type=GENERATION"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{data: [%{id: "obs-1"}]}))
+      end)
+
+      assert {:ok, result} = Client.list_observations(trace_id: "trace-123", type: "GENERATION")
+      assert result["data"] |> length() == 1
+    end
+
+    test "delete_dataset/1 deletes dataset", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "DELETE", "/api/public/v2/datasets/my-dataset", fn conn ->
+        Plug.Conn.resp(conn, 204, "")
+      end)
+
+      assert :ok = Client.delete_dataset("my-dataset")
+    end
+
+    test "delete_dataset_item/1 deletes item", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "DELETE", "/api/public/v2/dataset-items/item-123", fn conn ->
+        Plug.Conn.resp(conn, 204, "")
+      end)
+
+      assert :ok = Client.delete_dataset_item("item-123")
+    end
+
+    test "get_model/1 fetches model", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/models/model-123", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{id: "model-123", name: "gpt-4"}))
+      end)
+
+      assert {:ok, model} = Client.get_model("model-123")
+      assert model["name"] == "gpt-4"
+    end
+
+    test "list_models/1 returns models", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/models", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{data: [%{name: "gpt-4"}, %{name: "claude-3"}]}))
+      end)
+
+      assert {:ok, result} = Client.list_models()
+      assert result["data"] |> length() == 2
+    end
+
+    test "raw get/2 makes GET request", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/custom", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{custom: true}))
+      end)
+
+      assert {:ok, result} = Client.get("/api/public/custom")
+      assert result["custom"] == true
+    end
+
+    test "raw post/2 makes POST request", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/api/public/custom", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+
+        assert payload["data"] == "test"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{success: true}))
+      end)
+
+      assert {:ok, result} = Client.post("/api/public/custom", %{data: "test"})
+      assert result["success"] == true
     end
   end
 
-  describe "observation operations" do
-    test "get_observation/1 returns response type" do
-      result = Client.get_observation("obs-123")
-      assert is_tuple(result)
+  describe "not configured" do
+    setup do
+      original_public_key = Application.get_env(:langfuse, :public_key)
+      original_secret_key = Application.get_env(:langfuse, :secret_key)
+
+      Application.delete_env(:langfuse, :public_key)
+      Application.delete_env(:langfuse, :secret_key)
+
+      Langfuse.Config.reload()
+
+      on_exit(fn ->
+        if original_public_key do
+          Application.put_env(:langfuse, :public_key, original_public_key)
+        end
+
+        if original_secret_key do
+          Application.put_env(:langfuse, :secret_key, original_secret_key)
+        end
+
+        Langfuse.Config.reload()
+      end)
+
+      :ok
     end
 
-    test "list_observations/1 returns response type" do
-      result = Client.list_observations(limit: 10)
-      assert is_tuple(result)
-    end
-  end
-
-  describe "dataset item update" do
-    test "update_dataset_item/2 accepts update options" do
-      result =
-        Client.update_dataset_item("item-123",
-          input: %{updated: true},
-          expected_output: %{new_output: "value"},
-          metadata: %{version: 2},
-          status: "ACTIVE"
-        )
-
-      assert is_tuple(result)
-    end
-  end
-
-  describe "delete operations" do
-    test "delete_dataset/1 returns result tuple" do
-      result = Client.delete_dataset("test-dataset")
-      assert is_tuple(result) or result == :ok
-    end
-
-    test "delete_dataset_item/1 returns result tuple" do
-      result = Client.delete_dataset_item("item-123")
-      assert is_tuple(result) or result == :ok
-    end
-  end
-
-  describe "models API" do
-    test "get_model/1 returns response type" do
-      result = Client.get_model("model-123")
-      assert is_tuple(result)
-    end
-
-    test "list_models/1 returns response type" do
-      result = Client.list_models()
-      assert is_tuple(result)
-    end
-
-    test "list_models/1 accepts pagination options" do
-      opts = [limit: 50, page: 1]
-      assert is_list(opts)
+    test "returns error when credentials not configured" do
+      assert {:error, :not_configured} = Client.get_dataset("test")
+      assert {:error, :not_configured} = Client.list_traces()
+      assert {:error, :not_configured} = Client.delete_score("test")
     end
   end
 end

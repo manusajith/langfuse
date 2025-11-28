@@ -242,5 +242,194 @@ defmodule Langfuse.OpenTelemetry.AttributeMapperTest do
 
       assert AttributeMapper.map_attributes(attrs) == %{model: "gpt-4"}
     end
+
+    test "maps session.id as fallback" do
+      attrs = %{"session.id" => "sess-456"}
+      assert AttributeMapper.map_attributes(attrs) == %{session_id: "sess-456"}
+    end
+
+    test "maps langfuse.trace.public" do
+      attrs = %{"langfuse.trace.public" => true}
+      assert AttributeMapper.map_attributes(attrs) == %{public: true}
+    end
+
+    test "maps langfuse.release" do
+      attrs = %{"langfuse.release" => "v1.2.3"}
+      assert AttributeMapper.map_attributes(attrs) == %{release: "v1.2.3"}
+    end
+
+    test "maps langfuse.version" do
+      attrs = %{"langfuse.version" => "1.0.0"}
+      assert AttributeMapper.map_attributes(attrs) == %{version: "1.0.0"}
+    end
+
+    test "maps deployment.environment.name" do
+      attrs = %{"deployment.environment.name" => "production"}
+      assert AttributeMapper.map_attributes(attrs) == %{environment: "production"}
+    end
+
+    test "maps langfuse.observation.model.name" do
+      attrs = %{"langfuse.observation.model.name" => "gpt-4-turbo"}
+      assert AttributeMapper.map_attributes(attrs) == %{model: "gpt-4-turbo"}
+    end
+
+    test "maps langfuse.observation.model.parameters" do
+      attrs = %{"langfuse.observation.model.parameters" => ~s({"temperature": 0.7})}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.model_parameters == %{"temperature" => 0.7}
+    end
+
+    test "maps langfuse.observation.usage_details" do
+      attrs = %{"langfuse.observation.usage_details" => ~s({"input": 100, "output": 50})}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.usage == %{"input" => 100, "output" => 50}
+    end
+
+    test "maps langfuse.observation.cost_details" do
+      attrs = %{"langfuse.observation.cost_details" => ~s({"total": 0.005})}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.cost == %{"total" => 0.005}
+    end
+
+    test "maps langfuse.observation.completion_start_time" do
+      attrs = %{"langfuse.observation.completion_start_time" => "2025-01-01T00:00:00Z"}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.completion_start_time == "2025-01-01T00:00:00Z"
+    end
+
+    test "maps langfuse.observation.type" do
+      attrs = %{"langfuse.observation.type" => "GENERATION"}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.observation_type == "GENERATION"
+    end
+
+    test "maps llm.model_name" do
+      attrs = %{"llm.model_name" => "claude-3-opus"}
+      assert AttributeMapper.map_attributes(attrs) == %{model: "claude-3-opus"}
+    end
+
+    test "maps model direct attribute" do
+      attrs = %{"model" => "gpt-3.5-turbo"}
+      assert AttributeMapper.map_attributes(attrs) == %{model: "gpt-3.5-turbo"}
+    end
+
+    test "maps gen_ai.prompt_json" do
+      attrs = %{"gen_ai.prompt_json" => ~s([{"role": "user", "content": "Hi"}])}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.input == [%{"role" => "user", "content" => "Hi"}]
+    end
+
+    test "maps gen_ai.completion_json" do
+      attrs = %{"gen_ai.completion_json" => ~s({"text": "Hello!"})}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.output == %{"text" => "Hello!"}
+    end
+
+    test "maps gen_ai.usage.prompt_tokens" do
+      attrs = %{"gen_ai.usage.prompt_tokens" => 150}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.usage.input == 150
+    end
+
+    test "maps gen_ai.usage.completion_tokens" do
+      attrs = %{"gen_ai.usage.completion_tokens" => 75}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.usage.output == 75
+    end
+
+    test "maps gen_ai.request.frequency_penalty" do
+      attrs = %{"gen_ai.request.frequency_penalty" => 0.5}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.model_parameters.frequency_penalty == 0.5
+    end
+
+    test "maps gen_ai.request.presence_penalty" do
+      attrs = %{"gen_ai.request.presence_penalty" => 0.3}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.model_parameters.presence_penalty == 0.3
+    end
+
+    test "maps gen_ai.request.stop_sequences" do
+      attrs = %{"gen_ai.request.stop_sequences" => ["\\n", "END"]}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.model_parameters.stop == ["\\n", "END"]
+    end
+
+    test "maps gen_ai.request.seed" do
+      attrs = %{"gen_ai.request.seed" => 42}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.model_parameters.seed == 42
+    end
+
+    test "maps gen_ai.request.top_k" do
+      attrs = %{"gen_ai.request.top_k" => 40}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.model_parameters.top_k == 40
+    end
+
+    test "maps gen_ai.system to metadata" do
+      attrs = %{"gen_ai.system" => "openai"}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.metadata == %{"gen_ai.system" => "openai"}
+    end
+
+    test "maps gen_ai.operation.name to metadata" do
+      attrs = %{"gen_ai.operation.name" => "chat"}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.metadata == %{"operation" => "chat"}
+    end
+
+    test "maps llm.invocation_parameters.* to model_parameters" do
+      attrs = %{
+        "llm.invocation_parameters.temperature" => 0.8,
+        "llm.invocation_parameters.max_tokens" => 500
+      }
+
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.model_parameters["temperature"] == 0.8
+      assert result.model_parameters["max_tokens"] == 500
+    end
+
+    test "handles invalid tags gracefully" do
+      attrs = %{"langfuse.trace.tags" => 123}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.tags == nil
+    end
+
+    test "handles invalid prompt index" do
+      attrs = %{"gen_ai.prompt.invalid.role" => "user"}
+      result = AttributeMapper.map_attributes(attrs)
+      refute Map.has_key?(result, :input)
+    end
+
+    test "handles prompt attribute without field" do
+      attrs = %{"gen_ai.prompt.0" => "test"}
+      result = AttributeMapper.map_attributes(attrs)
+      refute Map.has_key?(result, :input)
+    end
+
+    test "maps langfuse.trace.input" do
+      attrs = %{"langfuse.trace.input" => ~s({"query": "test"})}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.trace_input == %{"query" => "test"}
+    end
+
+    test "maps langfuse.trace.output" do
+      attrs = %{"langfuse.trace.output" => "result text"}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.trace_output == "result text"
+    end
+
+    test "handles non-JSON string in parse_json_or_string" do
+      attrs = %{"gen_ai.prompt" => "plain text prompt"}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.input == "plain text prompt"
+    end
+
+    test "handles non-string values in parse_json_or_string" do
+      attrs = %{"gen_ai.usage.input_tokens" => 100}
+      result = AttributeMapper.map_attributes(attrs)
+      assert result.usage.input == 100
+    end
   end
 end
