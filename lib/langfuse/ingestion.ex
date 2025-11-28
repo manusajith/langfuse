@@ -69,17 +69,17 @@ defmodule Langfuse.Ingestion do
   """
   @spec enqueue(map()) :: :ok
   def enqueue(event) when is_map(event) do
-    if Config.enabled?() do
-      case Application.get_env(:langfuse, :event_handler) do
-        handler when is_function(handler, 1) ->
-          handler.(event)
-          :ok
+    case Application.get_env(:langfuse, :event_handler) do
+      handler when is_function(handler, 1) ->
+        handler.(event)
+        :ok
 
-        _ ->
+      _ ->
+        if Config.enabled?() do
           GenServer.cast(__MODULE__, {:enqueue, event})
-      end
-    else
-      :ok
+        else
+          :ok
+        end
     end
   end
 
