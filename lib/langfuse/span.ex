@@ -91,7 +91,6 @@ defmodule Langfuse.Span do
     :trace_id,
     :parent_observation_id,
     :name,
-    type: :span,
     :start_time,
     :end_time,
     :input,
@@ -99,7 +98,8 @@ defmodule Langfuse.Span do
     :metadata,
     :level,
     :status_message,
-    :version
+    :version,
+    type: :span
   ]
 
   @doc """

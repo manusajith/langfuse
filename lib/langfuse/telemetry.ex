@@ -57,7 +57,7 @@ defmodule Langfuse.Telemetry do
         [:langfuse, :http, :request, :stop],
         fn _event, measurements, metadata, _config ->
           duration_ms = System.convert_time_unit(measurements.duration, :native, :millisecond)
-          Logger.info("Langfuse HTTP request took #{duration_ms}ms")
+          Logger.info("Langfuse HTTP request took \#{duration_ms}ms")
         end,
         nil
       )
