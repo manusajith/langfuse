@@ -13,6 +13,7 @@ defmodule Langfuse.Config do
         public_key: "pk-lf-...",
         secret_key: "sk-lf-...",
         host: "https://cloud.langfuse.com",
+        environment: "production",
         flush_interval: 5_000,
         batch_size: 100,
         max_retries: 3,
@@ -25,12 +26,15 @@ defmodule Langfuse.Config do
     * `LANGFUSE_PUBLIC_KEY` - API public key
     * `LANGFUSE_SECRET_KEY` - API secret key
     * `LANGFUSE_HOST` - Langfuse server URL
+    * `LANGFUSE_ENVIRONMENT` - Environment name (e.g., "production", "staging")
 
   ## Configuration Options
 
     * `:public_key` - Langfuse API public key (required for API calls)
     * `:secret_key` - Langfuse API secret key (required for API calls)
     * `:host` - Langfuse server URL. Defaults to `"https://cloud.langfuse.com"`.
+    * `:environment` - Environment name for filtering in Langfuse dashboard.
+      Common values: `"production"`, `"staging"`, `"development"`.
     * `:flush_interval` - Interval in milliseconds between automatic flushes.
       Defaults to 5,000 (5 seconds).
     * `:batch_size` - Maximum events per batch before automatic flush.
@@ -62,6 +66,7 @@ defmodule Langfuse.Config do
     :public_key,
     :secret_key,
     :host,
+    :environment,
     :flush_interval,
     :batch_size,
     :max_retries,
@@ -78,6 +83,7 @@ defmodule Langfuse.Config do
           public_key: String.t() | nil,
           secret_key: String.t() | nil,
           host: String.t(),
+          environment: String.t() | nil,
           flush_interval: pos_integer(),
           batch_size: pos_integer(),
           max_retries: non_neg_integer(),
@@ -171,6 +177,7 @@ defmodule Langfuse.Config do
       public_key: get_value(:public_key, "LANGFUSE_PUBLIC_KEY"),
       secret_key: get_value(:secret_key, "LANGFUSE_SECRET_KEY"),
       host: get_value(:host, "LANGFUSE_HOST") || @default_host,
+      environment: get_value(:environment, "LANGFUSE_ENVIRONMENT"),
       flush_interval: get_integer(:flush_interval) || @default_flush_interval,
       batch_size: get_integer(:batch_size) || @default_batch_size,
       max_retries: get_integer(:max_retries) || @default_max_retries,
