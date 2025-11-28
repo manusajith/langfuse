@@ -40,6 +40,8 @@ defmodule Langfuse.MixProject do
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
       {:telemetry, "~> 1.2"},
+      {:opentelemetry_api, "~> 1.4", optional: true},
+      {:opentelemetry, "~> 1.5", optional: true},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
@@ -86,7 +88,11 @@ defmodule Langfuse.MixProject do
           Langfuse.Client
         ],
         Integrations: [
-          Langfuse.OpenTelemetry
+          Langfuse.OpenTelemetry,
+          Langfuse.OpenTelemetry.SpanProcessor,
+          Langfuse.OpenTelemetry.AttributeMapper,
+          Langfuse.OpenTelemetry.TraceContext,
+          Langfuse.OpenTelemetry.Setup
         ],
         Infrastructure: [
           Langfuse.Config,
