@@ -31,6 +31,7 @@ defmodule Langfuse.HTTP do
 
   @ingestion_path "/api/public/ingestion"
   @prompts_path "/api/public/v2/prompts"
+  @health_path "/api/public/health"
 
   @typedoc "HTTP response result."
   @type response :: {:ok, map()} | {:error, term()}
@@ -59,6 +60,23 @@ defmodule Langfuse.HTTP do
     case :application.get_key(:langfuse, :vsn) do
       {:ok, version} -> to_string(version)
       :undefined -> "unknown"
+    end
+  end
+
+  @doc """
+  Checks if the connection to Langfuse is working.
+
+  Makes a simple authenticated request to verify credentials are valid
+  and the Langfuse server is reachable.
+
+  Returns `true` if the connection is successful, `false` otherwise.
+  """
+  @impl true
+  @spec auth_check() :: boolean()
+  def auth_check do
+    case get(@health_path) do
+      {:ok, _} -> true
+      {:error, _} -> false
     end
   end
 

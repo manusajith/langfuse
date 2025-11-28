@@ -7,4 +7,5 @@ defmodule Langfuse.HTTPBehaviour do
   @callback get_prompt(String.t(), keyword()) :: response()
   @callback get(String.t(), keyword()) :: response()
   @callback post(String.t(), map()) :: response()
+  @callback auth_check() :: boolean()
 end

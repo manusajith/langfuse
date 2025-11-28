@@ -364,4 +364,27 @@ defmodule Langfuse do
   def shutdown do
     Ingestion.shutdown()
   end
+
+  @doc """
+  Checks if the connection to Langfuse is working.
+
+  Makes a simple authenticated request to verify credentials are valid
+  and the Langfuse server is reachable. Useful for health checks and
+  debugging configuration issues.
+
+  Returns `true` if the connection is successful, `false` otherwise.
+
+  ## Examples
+
+      if Langfuse.auth_check() do
+        IO.puts("Langfuse connection verified!")
+      else
+        IO.puts("Failed to connect to Langfuse")
+      end
+
+  """
+  @spec auth_check() :: boolean()
+  def auth_check do
+    Langfuse.HTTP.auth_check()
+  end
 end
