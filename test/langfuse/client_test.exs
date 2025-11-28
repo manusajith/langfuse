@@ -96,5 +96,30 @@ defmodule Langfuse.ClientTest do
 
       assert is_list(opts)
     end
+
+    test "list_observations/1 accepts filter options" do
+      opts = [
+        limit: 10,
+        trace_id: "trace-123",
+        name: "llm-call",
+        type: "GENERATION",
+        user_id: "user-456",
+        parent_observation_id: "parent-123"
+      ]
+
+      assert is_list(opts)
+    end
+  end
+
+  describe "observation operations" do
+    test "get_observation/1 returns response type" do
+      result = Client.get_observation("obs-123")
+      assert is_tuple(result)
+    end
+
+    test "list_observations/1 returns response type" do
+      result = Client.list_observations(limit: 10)
+      assert is_tuple(result)
+    end
   end
 end

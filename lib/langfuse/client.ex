@@ -236,6 +236,43 @@ defmodule Langfuse.Client do
   end
 
   @doc """
+  Gets an observation by ID.
+
+  Observations include spans, generations, and events within a trace.
+  """
+  @spec get_observation(String.t()) :: response()
+  def get_observation(id) do
+    get("/api/public/observations/#{URI.encode(id)}")
+  end
+
+  @doc """
+  Lists observations.
+
+  ## Options
+
+    * `:limit` - Maximum number of results
+    * `:page` - Page number
+    * `:trace_id` - Filter by trace ID
+    * `:name` - Filter by observation name
+    * `:type` - Filter by type ("SPAN", "GENERATION", "EVENT")
+    * `:user_id` - Filter by user ID
+    * `:parent_observation_id` - Filter by parent observation
+
+  """
+  @spec list_observations(keyword()) :: response()
+  def list_observations(opts \\ []) do
+    params =
+      build_pagination_params(opts)
+      |> maybe_add_param(:traceId, opts[:trace_id])
+      |> maybe_add_param(:name, opts[:name])
+      |> maybe_add_param(:type, opts[:type])
+      |> maybe_add_param(:userId, opts[:user_id])
+      |> maybe_add_param(:parentObservationId, opts[:parent_observation_id])
+
+    get("/api/public/observations", params)
+  end
+
+  @doc """
   Gets a trace by ID.
   """
   @spec get_trace(String.t()) :: response()
