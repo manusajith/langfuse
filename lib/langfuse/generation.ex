@@ -344,6 +344,7 @@ defmodule Langfuse.Generation do
     |> maybe_put(:promptName, gen.prompt_name)
     |> maybe_put(:promptVersion, gen.prompt_version)
     |> maybe_put(:version, gen.version)
+    |> maybe_put(:environment, Langfuse.Config.get(:environment))
   end
 
   defp format_usage(nil), do: nil

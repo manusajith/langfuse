@@ -117,6 +117,7 @@ defmodule Langfuse.Score do
     |> maybe_put(:stringValue, string_value)
     |> maybe_put(:comment, opts[:comment])
     |> maybe_put(:configId, opts[:config_id])
+    |> maybe_put(:environment, Langfuse.Config.get(:environment))
 
     event = %{
       id: generate_id(),
@@ -168,6 +169,7 @@ defmodule Langfuse.Score do
     |> maybe_put(:stringValue, string_value)
     |> maybe_put(:comment, opts[:comment])
     |> maybe_put(:configId, opts[:config_id])
+    |> maybe_put(:environment, Langfuse.Config.get(:environment))
 
     event = %{
       id: generate_id(),

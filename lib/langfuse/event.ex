@@ -191,6 +191,7 @@ defmodule Langfuse.Event do
     |> maybe_put(:level, event.level && level_to_string(event.level))
     |> maybe_put(:statusMessage, event.status_message)
     |> maybe_put(:version, event.version)
+    |> maybe_put(:environment, Langfuse.Config.get(:environment))
   end
 
   defp level_to_string(:debug), do: "DEBUG"

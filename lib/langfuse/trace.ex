@@ -257,6 +257,7 @@ defmodule Langfuse.Trace do
     |> maybe_put(:output, trace.output)
     |> maybe_put(:version, trace.version)
     |> maybe_put(:release, trace.release)
+    |> maybe_put(:environment, Langfuse.Config.get(:environment))
   end
 
   defp maybe_put(map, _key, nil), do: map
