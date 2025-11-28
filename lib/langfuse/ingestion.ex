@@ -61,13 +61,23 @@ defmodule Langfuse.Ingestion do
   Events are queued asynchronously and sent in batches. If tracing
   is disabled via configuration, this is a no-op.
 
+  If an `:event_handler` function is configured, it will be called
+  with the event instead of queueing. This is useful for testing.
+
   This function is called internally by trace, span, generation,
   event, and score modules.
   """
   @spec enqueue(map()) :: :ok
   def enqueue(event) when is_map(event) do
     if Config.enabled?() do
-      GenServer.cast(__MODULE__, {:enqueue, event})
+      case Application.get_env(:langfuse, :event_handler) do
+        handler when is_function(handler, 1) ->
+          handler.(event)
+          :ok
+
+        _ ->
+          GenServer.cast(__MODULE__, {:enqueue, event})
+      end
     else
       :ok
     end
