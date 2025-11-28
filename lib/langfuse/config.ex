@@ -43,6 +43,9 @@ defmodule Langfuse.Config do
       Defaults to 3.
     * `:enabled` - Whether tracing is enabled. Defaults to `true`.
       Set to `false` to disable all tracing (useful for tests).
+    * `:debug` - Whether debug logging is enabled. Defaults to `false`.
+      When enabled, logs detailed information about HTTP requests, batching,
+      and event processing. Useful for troubleshooting integration issues.
 
   ## Self-Hosted Langfuse
 
@@ -70,7 +73,8 @@ defmodule Langfuse.Config do
     :flush_interval,
     :batch_size,
     :max_retries,
-    :enabled
+    :enabled,
+    :debug
   ]
 
   @typedoc """
@@ -87,7 +91,8 @@ defmodule Langfuse.Config do
           flush_interval: pos_integer(),
           batch_size: pos_integer(),
           max_retries: non_neg_integer(),
-          enabled: boolean()
+          enabled: boolean(),
+          debug: boolean()
         }
 
   @doc false
@@ -161,6 +166,23 @@ defmodule Langfuse.Config do
     not is_nil(config.public_key) and not is_nil(config.secret_key)
   end
 
+  @doc """
+  Returns whether debug logging is enabled.
+
+  When enabled, the SDK logs detailed information about HTTP requests,
+  batching, and event processing to help troubleshoot integration issues.
+
+  ## Examples
+
+      Langfuse.Config.debug?()
+      # => false
+
+  """
+  @spec debug?() :: boolean()
+  def debug? do
+    get(:debug)
+  end
+
   @impl true
   def init(_opts) do
     config = load_config()
@@ -181,7 +203,8 @@ defmodule Langfuse.Config do
       flush_interval: get_integer(:flush_interval) || @default_flush_interval,
       batch_size: get_integer(:batch_size) || @default_batch_size,
       max_retries: get_integer(:max_retries) || @default_max_retries,
-      enabled: get_boolean(:enabled, true)
+      enabled: get_boolean(:enabled, true),
+      debug: get_boolean(:debug, false)
     }
   end
 
