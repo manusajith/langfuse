@@ -61,15 +61,24 @@ defmodule Langfuse.Client do
   @type response :: {:ok, map()} | {:ok, list(map())} | {:error, term()}
 
   @doc """
-  Lists prompts.
+  Lists prompts with pagination and filtering.
 
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number for pagination
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
     * `:name` - Filter by prompt name
     * `:label` - Filter by label
     * `:tag` - Filter by tag
+
+  ## Examples
+
+      Langfuse.Client.list_prompts()
+      #=> {:ok, %{"data" => [...], "meta" => %{"page" => 1, "totalPages" => 5}}}
+
+      Langfuse.Client.list_prompts(limit: 10, name: "chat-template")
+
+      Langfuse.Client.list_prompts(label: "production")
 
   """
   @spec list_prompts(keyword()) :: response()
@@ -148,6 +157,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Gets a dataset by name.
+
+  ## Examples
+
+      Langfuse.Client.get_dataset("qa-evaluation")
+      #=> {:ok, %{"id" => "...", "name" => "qa-evaluation", "items" => [...]}}
+
   """
   @spec get_dataset(String.t()) :: response()
   def get_dataset(name) do
@@ -162,6 +177,17 @@ defmodule Langfuse.Client do
     * `:name` - Dataset name (required)
     * `:description` - Dataset description
     * `:metadata` - Additional metadata
+
+  ## Examples
+
+      Langfuse.Client.create_dataset(name: "qa-evaluation")
+      #=> {:ok, %{"id" => "...", "name" => "qa-evaluation"}}
+
+      Langfuse.Client.create_dataset(
+        name: "rag-benchmark",
+        description: "Evaluation dataset for RAG pipeline",
+        metadata: %{version: "1.0"}
+      )
 
   """
   @spec create_dataset(keyword()) :: response()
@@ -182,7 +208,14 @@ defmodule Langfuse.Client do
   ## Options
 
     * `:limit` - Maximum number of results (default: 50)
-    * `:page` - Page number for pagination
+    * `:page` - Page number for pagination (1-indexed)
+
+  ## Examples
+
+      Langfuse.Client.list_datasets()
+      #=> {:ok, %{"data" => [...], "meta" => %{"page" => 1, "totalPages" => 1}}}
+
+      Langfuse.Client.list_datasets(limit: 10, page: 2)
 
   """
   @spec list_datasets(keyword()) :: response()
@@ -202,7 +235,16 @@ defmodule Langfuse.Client do
     * `:metadata` - Additional metadata
     * `:source_trace_id` - Source trace ID
     * `:source_observation_id` - Source observation ID
-    * `:status` - Item status
+    * `:status` - Item status ("ACTIVE" or "ARCHIVED")
+
+  ## Examples
+
+      Langfuse.Client.create_dataset_item(
+        dataset_name: "qa-evaluation",
+        input: %{question: "What is Elixir?"},
+        expected_output: %{answer: "A functional programming language"}
+      )
+      #=> {:ok, %{"id" => "...", "input" => %{...}}}
 
   """
   @spec create_dataset_item(keyword()) :: response()
@@ -223,6 +265,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Gets a dataset item by ID.
+
+  ## Examples
+
+      Langfuse.Client.get_dataset_item("item-abc-123")
+      #=> {:ok, %{"id" => "item-abc-123", "input" => %{...}, "expectedOutput" => %{...}}}
+
   """
   @spec get_dataset_item(String.t()) :: response()
   def get_dataset_item(id) do
@@ -238,6 +286,14 @@ defmodule Langfuse.Client do
     * `:expected_output` - Updated expected output
     * `:metadata` - Updated metadata
     * `:status` - Updated status ("ACTIVE" or "ARCHIVED")
+
+  ## Examples
+
+      Langfuse.Client.update_dataset_item("item-abc-123",
+        expected_output: %{answer: "Updated answer"},
+        status: "ARCHIVED"
+      )
+      #=> {:ok, %{"id" => "item-abc-123", ...}}
 
   """
   @spec update_dataset_item(String.t(), keyword()) :: response()
@@ -255,12 +311,30 @@ defmodule Langfuse.Client do
   @doc """
   Creates a dataset run.
 
+  A dataset run represents a single evaluation pass over a dataset,
+  linking trace executions to dataset items for comparison.
+
   ## Options
 
     * `:name` - Run name (required)
     * `:dataset_name` - Dataset name (required)
     * `:description` - Run description
     * `:metadata` - Additional metadata
+
+  ## Examples
+
+      Langfuse.Client.create_dataset_run(
+        name: "eval-2025-01-15",
+        dataset_name: "qa-evaluation"
+      )
+      #=> {:ok, %{"name" => "eval-2025-01-15", ...}}
+
+      Langfuse.Client.create_dataset_run(
+        name: "gpt4-vs-claude",
+        dataset_name: "qa-evaluation",
+        description: "Comparing GPT-4 and Claude responses",
+        metadata: %{model: "gpt-4"}
+      )
 
   """
   @spec create_dataset_run(keyword()) :: response()
@@ -279,14 +353,26 @@ defmodule Langfuse.Client do
   @doc """
   Creates a dataset run item linking a trace to a dataset item.
 
+  This connects an execution trace to a specific dataset item, enabling
+  comparison between the actual output and expected output.
+
   ## Options
 
     * `:run_name` - Run name (required)
     * `:run_description` - Run description
     * `:dataset_item_id` - Dataset item ID (required)
     * `:trace_id` - Trace ID (required)
-    * `:observation_id` - Observation ID
+    * `:observation_id` - Observation ID (to link specific span/generation)
     * `:metadata` - Additional metadata
+
+  ## Examples
+
+      Langfuse.Client.create_dataset_run_item(
+        run_name: "eval-2025-01-15",
+        dataset_item_id: "item-abc-123",
+        trace_id: "trace-xyz-789"
+      )
+      #=> {:ok, %{"id" => "...", "runName" => "eval-2025-01-15", ...}}
 
   """
   @spec create_dataset_run_item(keyword()) :: response()
@@ -306,6 +392,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Gets a dataset run by name.
+
+  ## Examples
+
+      Langfuse.Client.get_dataset_run("qa-evaluation", "eval-2025-01-15")
+      #=> {:ok, %{"name" => "eval-2025-01-15", "datasetName" => "qa-evaluation", ...}}
+
   """
   @spec get_dataset_run(String.t(), String.t()) :: response()
   def get_dataset_run(dataset_name, run_name) do
@@ -317,8 +409,15 @@ defmodule Langfuse.Client do
 
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number for pagination
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
+
+  ## Examples
+
+      Langfuse.Client.list_dataset_runs("qa-evaluation")
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
+
+      Langfuse.Client.list_dataset_runs("qa-evaluation", limit: 5)
 
   """
   @spec list_dataset_runs(String.t(), keyword()) :: response()
@@ -331,6 +430,12 @@ defmodule Langfuse.Client do
   Deletes a dataset run.
 
   This operation is irreversible. All run items will also be deleted.
+
+  ## Examples
+
+      Langfuse.Client.delete_dataset_run("qa-evaluation", "eval-2025-01-15")
+      #=> :ok
+
   """
   @spec delete_dataset_run(String.t(), String.t()) :: :ok | {:error, term()}
   def delete_dataset_run(dataset_name, run_name) do
@@ -342,9 +447,16 @@ defmodule Langfuse.Client do
 
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number for pagination
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
     * `:dataset_name` - Filter by dataset name
+
+  ## Examples
+
+      Langfuse.Client.list_dataset_items()
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
+
+      Langfuse.Client.list_dataset_items(dataset_name: "qa-evaluation", limit: 10)
 
   """
   @spec list_dataset_items(keyword()) :: response()
@@ -361,10 +473,17 @@ defmodule Langfuse.Client do
 
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number for pagination
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
     * `:run_name` - Filter by run name
     * `:dataset_item_id` - Filter by dataset item ID
+
+  ## Examples
+
+      Langfuse.Client.list_dataset_run_items()
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
+
+      Langfuse.Client.list_dataset_run_items(run_name: "eval-2025-01-15")
 
   """
   @spec list_dataset_run_items(keyword()) :: response()
@@ -379,6 +498,17 @@ defmodule Langfuse.Client do
 
   @doc """
   Lists score configurations.
+
+  ## Options
+
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
+
+  ## Examples
+
+      Langfuse.Client.list_score_configs()
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
+
   """
   @spec list_score_configs(keyword()) :: response()
   def list_score_configs(opts \\ []) do
@@ -388,6 +518,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Gets a score configuration by ID.
+
+  ## Examples
+
+      Langfuse.Client.get_score_config("config-abc-123")
+      #=> {:ok, %{"id" => "config-abc-123", "name" => "accuracy", "dataType" => "NUMERIC"}}
+
   """
   @spec get_score_config(String.t()) :: response()
   def get_score_config(id) do
@@ -397,6 +533,9 @@ defmodule Langfuse.Client do
   @doc """
   Creates a score configuration.
 
+  Score configurations define the schema for scores, including allowed
+  values, ranges, and categories.
+
   ## Options
 
     * `:name` - Config name (required)
@@ -405,6 +544,26 @@ defmodule Langfuse.Client do
     * `:max_value` - Maximum value (for numeric)
     * `:categories` - List of category maps (for categorical)
     * `:description` - Config description
+
+  ## Examples
+
+      Langfuse.Client.create_score_config(
+        name: "accuracy",
+        data_type: "NUMERIC",
+        min_value: 0,
+        max_value: 1
+      )
+      #=> {:ok, %{"id" => "...", "name" => "accuracy", ...}}
+
+      Langfuse.Client.create_score_config(
+        name: "sentiment",
+        data_type: "CATEGORICAL",
+        categories: [
+          %{label: "positive", value: 1},
+          %{label: "neutral", value: 0},
+          %{label: "negative", value: -1}
+        ]
+      )
 
   """
   @spec create_score_config(keyword()) :: response()
@@ -426,6 +585,12 @@ defmodule Langfuse.Client do
   Gets an observation by ID.
 
   Observations include spans, generations, and events within a trace.
+
+  ## Examples
+
+      Langfuse.Client.get_observation("obs-abc-123")
+      #=> {:ok, %{"id" => "obs-abc-123", "type" => "GENERATION", "name" => "llm-call", ...}}
+
   """
   @spec get_observation(String.t()) :: response()
   def get_observation(id) do
@@ -437,13 +602,20 @@ defmodule Langfuse.Client do
 
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
     * `:trace_id` - Filter by trace ID
     * `:name` - Filter by observation name
     * `:type` - Filter by type ("SPAN", "GENERATION", "EVENT")
     * `:user_id` - Filter by user ID
     * `:parent_observation_id` - Filter by parent observation
+
+  ## Examples
+
+      Langfuse.Client.list_observations(trace_id: "trace-abc-123")
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
+
+      Langfuse.Client.list_observations(type: "GENERATION", limit: 10)
 
   """
   @spec list_observations(keyword()) :: response()
@@ -461,6 +633,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Gets a trace by ID.
+
+  ## Examples
+
+      Langfuse.Client.get_trace("trace-abc-123")
+      #=> {:ok, %{"id" => "trace-abc-123", "name" => "chat-request", "observations" => [...]}}
+
   """
   @spec get_trace(String.t()) :: response()
   def get_trace(id) do
@@ -472,14 +650,26 @@ defmodule Langfuse.Client do
 
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
     * `:user_id` - Filter by user ID
     * `:session_id` - Filter by session ID
     * `:name` - Filter by name
-    * `:tags` - Filter by tags
-    * `:from_timestamp` - Filter from timestamp
-    * `:to_timestamp` - Filter to timestamp
+    * `:tags` - Filter by tags (list of strings)
+    * `:from_timestamp` - Filter from timestamp (ISO 8601)
+    * `:to_timestamp` - Filter to timestamp (ISO 8601)
+
+  ## Examples
+
+      Langfuse.Client.list_traces()
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
+
+      Langfuse.Client.list_traces(user_id: "user-123", limit: 10)
+
+      Langfuse.Client.list_traces(
+        session_id: "session-456",
+        from_timestamp: "2025-01-01T00:00:00Z"
+      )
 
   """
   @spec list_traces(keyword()) :: response()
@@ -498,6 +688,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Gets a session by ID.
+
+  ## Examples
+
+      Langfuse.Client.get_session("session-abc-123")
+      #=> {:ok, %{"id" => "session-abc-123", "traces" => [...]}}
+
   """
   @spec get_session(String.t()) :: response()
   def get_session(id) do
@@ -509,10 +705,17 @@ defmodule Langfuse.Client do
 
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number
-    * `:from_timestamp` - Filter from timestamp
-    * `:to_timestamp` - Filter to timestamp
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
+    * `:from_timestamp` - Filter from timestamp (ISO 8601)
+    * `:to_timestamp` - Filter to timestamp (ISO 8601)
+
+  ## Examples
+
+      Langfuse.Client.list_sessions()
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
+
+      Langfuse.Client.list_sessions(limit: 20)
 
   """
   @spec list_sessions(keyword()) :: response()
@@ -527,6 +730,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Gets a score by ID.
+
+  ## Examples
+
+      Langfuse.Client.get_score("score-abc-123")
+      #=> {:ok, %{"id" => "score-abc-123", "name" => "accuracy", "value" => 0.95}}
+
   """
   @spec get_score(String.t()) :: response()
   def get_score(id) do
@@ -538,12 +747,21 @@ defmodule Langfuse.Client do
 
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
     * `:trace_id` - Filter by trace ID
     * `:user_id` - Filter by user ID
     * `:name` - Filter by score name
-    * `:data_type` - Filter by data type
+    * `:data_type` - Filter by data type ("NUMERIC", "CATEGORICAL", "BOOLEAN")
+
+  ## Examples
+
+      Langfuse.Client.list_scores()
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
+
+      Langfuse.Client.list_scores(trace_id: "trace-abc-123")
+
+      Langfuse.Client.list_scores(name: "accuracy", data_type: "NUMERIC")
 
   """
   @spec list_scores(keyword()) :: response()
@@ -560,6 +778,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Deletes a score by ID.
+
+  ## Examples
+
+      Langfuse.Client.delete_score("score-abc-123")
+      #=> :ok
+
   """
   @spec delete_score(String.t()) :: :ok | {:error, term()}
   def delete_score(id) do
@@ -571,6 +795,12 @@ defmodule Langfuse.Client do
 
   This operation is irreversible. All items and runs in the dataset
   will also be deleted.
+
+  ## Examples
+
+      Langfuse.Client.delete_dataset("qa-evaluation")
+      #=> :ok
+
   """
   @spec delete_dataset(String.t()) :: :ok | {:error, term()}
   def delete_dataset(name) do
@@ -579,6 +809,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Deletes a dataset item by ID.
+
+  ## Examples
+
+      Langfuse.Client.delete_dataset_item("item-abc-123")
+      #=> :ok
+
   """
   @spec delete_dataset_item(String.t()) :: :ok | {:error, term()}
   def delete_dataset_item(id) do
@@ -588,10 +824,17 @@ defmodule Langfuse.Client do
   @doc """
   Lists available models with pricing information.
 
+  Returns both built-in models and custom models you've created.
+
   ## Options
 
-    * `:limit` - Maximum number of results
-    * `:page` - Page number
+    * `:limit` - Maximum number of results (default: 50)
+    * `:page` - Page number for pagination (1-indexed)
+
+  ## Examples
+
+      Langfuse.Client.list_models()
+      #=> {:ok, %{"data" => [...], "meta" => %{...}}}
 
   """
   @spec list_models(keyword()) :: response()
@@ -602,6 +845,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Gets a model by ID.
+
+  ## Examples
+
+      Langfuse.Client.get_model("model-abc-123")
+      #=> {:ok, %{"id" => "model-abc-123", "modelName" => "gpt-4", ...}}
+
   """
   @spec get_model(String.t()) :: response()
   def get_model(id) do
@@ -658,6 +907,12 @@ defmodule Langfuse.Client do
 
   Only custom models created via the API can be deleted.
   Built-in models cannot be deleted.
+
+  ## Examples
+
+      Langfuse.Client.delete_model("model-abc-123")
+      #=> :ok
+
   """
   @spec delete_model(String.t()) :: :ok | {:error, term()}
   def delete_model(id) do
@@ -666,6 +921,16 @@ defmodule Langfuse.Client do
 
   @doc """
   Makes a raw GET request to the Langfuse API.
+
+  Use this for API endpoints not covered by the higher-level functions.
+
+  ## Examples
+
+      Langfuse.Client.get("/api/public/health")
+      #=> {:ok, %{"status" => "OK"}}
+
+      Langfuse.Client.get("/api/public/traces", limit: 5)
+
   """
   @spec get(String.t(), keyword()) :: response()
   def get(path, params \\ []) do
@@ -674,6 +939,14 @@ defmodule Langfuse.Client do
 
   @doc """
   Makes a raw POST request to the Langfuse API.
+
+  Use this for API endpoints not covered by the higher-level functions.
+
+  ## Examples
+
+      Langfuse.Client.post("/api/public/v2/datasets", %{name: "my-dataset"})
+      #=> {:ok, %{"id" => "...", "name" => "my-dataset"}}
+
   """
   @spec post(String.t(), map()) :: response()
   def post(path, body) do
@@ -682,6 +955,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Makes a raw DELETE request to the Langfuse API.
+
+  ## Examples
+
+      Langfuse.Client.delete("/api/public/scores/score-abc-123")
+      #=> :ok
+
   """
   @spec delete(String.t()) :: :ok | {:error, term()}
   def delete(path) do
@@ -707,6 +986,12 @@ defmodule Langfuse.Client do
 
   @doc """
   Makes a raw PATCH request to the Langfuse API.
+
+  ## Examples
+
+      Langfuse.Client.patch("/api/public/v2/dataset-items/item-123", %{status: "ARCHIVED"})
+      #=> {:ok, %{"id" => "item-123", "status" => "ARCHIVED"}}
+
   """
   @spec patch(String.t(), map()) :: response()
   def patch(path, body) do
