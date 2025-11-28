@@ -42,6 +42,24 @@ defmodule Langfuse.Span do
   @typedoc "Log level for the observation."
   @type level :: :debug | :default | :warning | :error
 
+  @typedoc """
+  Observation type for categorizing spans.
+
+  Different types enable specialized views in the Langfuse dashboard:
+
+    * `:span` - Generic unit of work (default)
+    * `:agent` - AI agent decision spans
+    * `:tool` - Tool/function call observations
+    * `:chain` - Links between application steps
+    * `:retriever` - RAG/data retrieval steps
+    * `:embedding` - Embedding generation
+    * `:evaluator` - Evaluation function spans
+    * `:guardrail` - Safety/moderation checks
+
+  """
+  @type observation_type ::
+          :span | :agent | :tool | :chain | :retriever | :embedding | :evaluator | :guardrail
+
   @typedoc "Valid parent types for a span: a trace or another span."
   @type parent :: Trace.t() | t()
 
@@ -56,6 +74,7 @@ defmodule Langfuse.Span do
           trace_id: String.t(),
           parent_observation_id: String.t() | nil,
           name: String.t(),
+          type: observation_type(),
           start_time: DateTime.t(),
           end_time: DateTime.t() | nil,
           input: term(),
@@ -72,6 +91,7 @@ defmodule Langfuse.Span do
     :trace_id,
     :parent_observation_id,
     :name,
+    type: :span,
     :start_time,
     :end_time,
     :input,
@@ -92,6 +112,7 @@ defmodule Langfuse.Span do
 
     * `:name` - Name of the span (required)
     * `:id` - Custom span ID. Uses secure random hex if not provided.
+    * `:type` - Observation type. Defaults to `:span`. See `t:observation_type/0`.
     * `:input` - Input data for the span.
     * `:output` - Output data for the span.
     * `:metadata` - Arbitrary metadata as a map.
@@ -132,6 +153,7 @@ defmodule Langfuse.Span do
       trace_id: trace_id,
       parent_observation_id: parent_observation_id,
       name: name,
+      type: opts[:type] || :span,
       start_time: opts[:start_time] || DateTime.utc_now(),
       end_time: opts[:end_time],
       input: opts[:input],
@@ -272,6 +294,7 @@ defmodule Langfuse.Span do
       startTime: DateTime.to_iso8601(span.start_time)
     }
     |> maybe_put(:parentObservationId, span.parent_observation_id)
+    |> maybe_put(:type, type_to_string(span.type))
     |> maybe_put(:endTime, span.end_time && DateTime.to_iso8601(span.end_time))
     |> maybe_put(:input, span.input)
     |> maybe_put(:output, span.output)
@@ -279,7 +302,17 @@ defmodule Langfuse.Span do
     |> maybe_put(:level, span.level && level_to_string(span.level))
     |> maybe_put(:statusMessage, span.status_message)
     |> maybe_put(:version, span.version)
+    |> maybe_put(:environment, Langfuse.Config.get(:environment))
   end
+
+  defp type_to_string(:span), do: "SPAN"
+  defp type_to_string(:agent), do: "AGENT"
+  defp type_to_string(:tool), do: "TOOL"
+  defp type_to_string(:chain), do: "CHAIN"
+  defp type_to_string(:retriever), do: "RETRIEVER"
+  defp type_to_string(:embedding), do: "EMBEDDING"
+  defp type_to_string(:evaluator), do: "EVALUATOR"
+  defp type_to_string(:guardrail), do: "GUARDRAIL"
 
   defp level_to_string(:debug), do: "DEBUG"
   defp level_to_string(:default), do: "DEFAULT"
