@@ -308,4 +308,19 @@ defmodule Langfuse.HTTPTest do
       assert {:error, :not_configured} = Langfuse.HTTP.post("/api/public/test", %{})
     end
   end
+
+  describe "ssl_options/1" do
+    test "returns empty list when cacertfile is nil" do
+      config = %Langfuse.Config{cacertfile: nil}
+      assert Langfuse.HTTP.ssl_options(config) == []
+    end
+
+    test "returns connect_options when cacertfile is set" do
+      config = %Langfuse.Config{cacertfile: "/path/to/ca.pem"}
+
+      assert Langfuse.HTTP.ssl_options(config) == [
+               connect_options: [transport_opts: [cacertfile: "/path/to/ca.pem"]]
+             ]
+    end
+  end
 end

@@ -1008,7 +1008,11 @@ defmodule Langfuse.Client do
     if Config.configured?() do
       url = config.host <> path
 
-      case Req.delete(url, auth: {:basic, "#{config.public_key}:#{config.secret_key}"}) do
+      case Req.delete(
+             url,
+             [auth: {:basic, "#{config.public_key}:#{config.secret_key}"}] ++
+               HTTP.ssl_options(config)
+           ) do
         {:ok, %Req.Response{status: status}} when status in 200..299 ->
           :ok
 
@@ -1039,9 +1043,10 @@ defmodule Langfuse.Client do
     if Config.configured?() do
       url = config.host <> path
 
-      case Req.patch(url,
-             json: body,
-             auth: {:basic, "#{config.public_key}:#{config.secret_key}"}
+      case Req.patch(
+             url,
+             [json: body, auth: {:basic, "#{config.public_key}:#{config.secret_key}"}] ++
+               HTTP.ssl_options(config)
            ) do
         {:ok, %Req.Response{status: status, body: resp_body}} when status in 200..299 ->
           {:ok, resp_body}
