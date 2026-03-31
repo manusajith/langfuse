@@ -23,6 +23,7 @@ defmodule Langfuse.IngestionTest do
     Application.delete_env(:langfuse, :event_handler)
 
     Langfuse.Config.reload()
+    capture_log(fn -> Ingestion.flush() end)
 
     on_exit(fn ->
       Enum.each(original_config, fn {key, value} ->
@@ -34,6 +35,7 @@ defmodule Langfuse.IngestionTest do
       end)
 
       Langfuse.Config.reload()
+      capture_log(fn -> Ingestion.flush() end)
     end)
 
     :ok
