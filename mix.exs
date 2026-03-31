@@ -8,7 +8,7 @@ defmodule Langfuse.MixProject do
     [
       app: :langfuse,
       version: @version,
-      elixir: "~> 1.19",
+      elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
