@@ -153,9 +153,7 @@ defmodule Langfuse.HTTPTest do
     end
 
     test "get_prompt/2 fetches prompt by name", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
-        assert conn.query_string =~ "name=test-prompt"
-
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/test-prompt", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.resp(
@@ -177,8 +175,7 @@ defmodule Langfuse.HTTPTest do
     end
 
     test "get_prompt/2 with version option", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
-        assert conn.query_string =~ "name=test-prompt"
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/test-prompt", fn conn ->
         assert conn.query_string =~ "version=3"
 
         conn
@@ -194,8 +191,7 @@ defmodule Langfuse.HTTPTest do
     end
 
     test "get_prompt/2 with label option", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
-        assert conn.query_string =~ "name=test-prompt"
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/test-prompt", fn conn ->
         assert conn.query_string =~ "label=staging"
 
         conn
@@ -210,8 +206,24 @@ defmodule Langfuse.HTTPTest do
       assert "staging" in prompt["labels"]
     end
 
+    test "get_prompt/2 with resolve option", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/test-prompt", fn conn ->
+        assert conn.query_string =~ "resolve=false"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(
+          200,
+          Jason.encode!(%{name: "test-prompt", version: 1, prompt: "raw {{dep}}"})
+        )
+      end)
+
+      assert {:ok, prompt} = Langfuse.HTTP.get_prompt("test-prompt", resolve: false)
+      assert prompt["prompt"] == "raw {{dep}}"
+    end
+
     test "get_prompt/2 handles not found", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/nonexistent", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.resp(404, Jason.encode!(%{error: "Prompt not found"}))

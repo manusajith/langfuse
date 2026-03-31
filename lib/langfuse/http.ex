@@ -89,17 +89,19 @@ defmodule Langfuse.HTTP do
 
     * `:version` - Specific version number
     * `:label` - Label to fetch (e.g., "production")
+    * `:resolve` - Whether to resolve prompt dependencies before returning (defaults to `true` on server)
 
   """
   @impl true
   @spec get_prompt(String.t(), keyword()) :: response()
   def get_prompt(name, opts \\ []) do
     params =
-      [name: name]
+      []
       |> maybe_add(:version, opts[:version])
       |> maybe_add(:label, opts[:label])
+      |> maybe_add(:resolve, opts[:resolve])
 
-    get(@prompts_path, params)
+    get("#{@prompts_path}/#{URI.encode(name, &URI.char_unreserved?/1)}", params)
   end
 
   @doc """

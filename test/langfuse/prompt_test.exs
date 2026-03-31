@@ -200,7 +200,7 @@ defmodule Langfuse.PromptTest do
         tags: []
       }
 
-      key = {"cached", nil, nil}
+      key = {"cached", nil, nil, true}
       expires_at = System.monotonic_time(:millisecond) + 60_000
       :ets.insert(:langfuse_prompt_cache, {key, prompt, expires_at})
 
@@ -209,6 +209,70 @@ defmodule Langfuse.PromptTest do
       Prompt.invalidate("cached")
 
       assert :ets.lookup(:langfuse_prompt_cache, key) == []
+    end
+
+    test "invalidates versioned cache entries across resolve variants" do
+      try do
+        :ets.new(:langfuse_prompt_cache, [:set, :public, :named_table])
+      rescue
+        ArgumentError -> :ok
+      end
+
+      prompt = %Prompt{
+        name: "cached",
+        version: 2,
+        type: :text,
+        prompt: "test",
+        labels: [],
+        tags: []
+      }
+
+      expires_at = System.monotonic_time(:millisecond) + 60_000
+      resolved_key = {"cached", 2, nil, true}
+      unresolved_key = {"cached", 2, nil, false}
+      other_key = {"cached", 3, nil, true}
+
+      :ets.insert(:langfuse_prompt_cache, {resolved_key, prompt, expires_at})
+      :ets.insert(:langfuse_prompt_cache, {unresolved_key, prompt, expires_at})
+      :ets.insert(:langfuse_prompt_cache, {other_key, prompt, expires_at})
+
+      Prompt.invalidate("cached", version: 2)
+
+      assert :ets.lookup(:langfuse_prompt_cache, resolved_key) == []
+      assert :ets.lookup(:langfuse_prompt_cache, unresolved_key) == []
+      assert :ets.lookup(:langfuse_prompt_cache, other_key) != []
+    end
+
+    test "invalidates labeled cache entries across resolve variants" do
+      try do
+        :ets.new(:langfuse_prompt_cache, [:set, :public, :named_table])
+      rescue
+        ArgumentError -> :ok
+      end
+
+      prompt = %Prompt{
+        name: "cached",
+        version: 2,
+        type: :text,
+        prompt: "test",
+        labels: ["production"],
+        tags: []
+      }
+
+      expires_at = System.monotonic_time(:millisecond) + 60_000
+      resolved_key = {"cached", nil, "production", true}
+      unresolved_key = {"cached", nil, "production", false}
+      other_key = {"cached", nil, "staging", true}
+
+      :ets.insert(:langfuse_prompt_cache, {resolved_key, prompt, expires_at})
+      :ets.insert(:langfuse_prompt_cache, {unresolved_key, prompt, expires_at})
+      :ets.insert(:langfuse_prompt_cache, {other_key, prompt, expires_at})
+
+      Prompt.invalidate("cached", label: "production")
+
+      assert :ets.lookup(:langfuse_prompt_cache, resolved_key) == []
+      assert :ets.lookup(:langfuse_prompt_cache, unresolved_key) == []
+      assert :ets.lookup(:langfuse_prompt_cache, other_key) != []
     end
   end
 
@@ -234,8 +298,8 @@ defmodule Langfuse.PromptTest do
       }
 
       expires_at = System.monotonic_time(:millisecond) + 60_000
-      :ets.insert(:langfuse_prompt_cache, {{"test", nil, nil}, prompt, expires_at})
-      :ets.insert(:langfuse_prompt_cache, {{"test", 2, nil}, prompt, expires_at})
+      :ets.insert(:langfuse_prompt_cache, {{"test", nil, nil, true}, prompt, expires_at})
+      :ets.insert(:langfuse_prompt_cache, {{"test", 2, nil, false}, prompt, expires_at})
 
       Prompt.invalidate_all()
 
@@ -294,9 +358,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "fetch/2 fetches prompt from API", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
-        assert conn.query_string =~ "name=test-prompt"
-
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/test-prompt", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.resp(
@@ -324,8 +386,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "fetch/2 with version option", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
-        assert conn.query_string =~ "name=test-prompt"
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/test-prompt", fn conn ->
         assert conn.query_string =~ "version=3"
 
         conn
@@ -341,8 +402,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "fetch/2 with label option", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
-        assert conn.query_string =~ "name=test-prompt"
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/test-prompt", fn conn ->
         assert conn.query_string =~ "label=staging"
 
         conn
@@ -358,7 +418,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "fetch/2 returns not_found for 404", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/nonexistent", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.resp(404, Jason.encode!(%{error: "Prompt not found"}))
@@ -368,7 +428,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "fetch/2 parses chat type prompts", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/chat-prompt", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.resp(
@@ -388,7 +448,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "get/2 caches prompts", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/cached-prompt", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.resp(
@@ -403,8 +463,51 @@ defmodule Langfuse.PromptTest do
       assert prompt1.name == prompt2.name
     end
 
+    test "get/2 treats default resolve and explicit true as the same cache entry", %{
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/resolved-prompt", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(
+          200,
+          Jason.encode!(%{name: "resolved-prompt", version: 1, type: "text", prompt: "cached"})
+        )
+      end)
+
+      assert {:ok, prompt1} = Prompt.get("resolved-prompt")
+      assert {:ok, prompt2} = Prompt.get("resolved-prompt", resolve: true)
+
+      assert prompt1 == prompt2
+    end
+
+    test "get/2 keeps unresolved prompts in a separate cache entry", %{bypass: bypass} do
+      Bypass.expect(bypass, "GET", "/api/public/v2/prompts/raw-prompt", fn conn ->
+        assert conn.query_string in ["", "resolve=false"]
+
+        body =
+          case conn.query_string do
+            "resolve=false" ->
+              %{name: "raw-prompt", version: 1, type: "text", prompt: "raw {{dep}}"}
+
+            _ ->
+              %{name: "raw-prompt", version: 1, type: "text", prompt: "resolved value"}
+          end
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(body))
+      end)
+
+      assert {:ok, resolved_prompt} = Prompt.get("raw-prompt")
+      assert {:ok, raw_prompt} = Prompt.get("raw-prompt", resolve: false)
+
+      assert resolved_prompt.prompt == "resolved value"
+      assert raw_prompt.prompt == "raw {{dep}}"
+    end
+
     test "get/2 with fallback prompt struct on error", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/failing-prompt", fn conn ->
         Plug.Conn.resp(conn, 500, Jason.encode!(%{error: "Server error"}))
       end)
 
@@ -424,7 +527,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "get/2 with fallback template string on error", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/failing-prompt", fn conn ->
         Plug.Conn.resp(conn, 500, Jason.encode!(%{error: "Server error"}))
       end)
 
@@ -436,7 +539,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "get/2 with fallback chat messages on error", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/failing-prompt", fn conn ->
         Plug.Conn.resp(conn, 500, Jason.encode!(%{error: "Server error"}))
       end)
 
@@ -448,7 +551,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "get/2 returns error without fallback", %{bypass: bypass} do
-      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect_once(bypass, "GET", "/api/public/v2/prompts/missing-prompt", fn conn ->
         Plug.Conn.resp(conn, 404, Jason.encode!(%{error: "Not found"}))
       end)
 
@@ -456,7 +559,7 @@ defmodule Langfuse.PromptTest do
     end
 
     test "get/2 respects cache_ttl option", %{bypass: bypass} do
-      Bypass.expect(bypass, "GET", "/api/public/v2/prompts", fn conn ->
+      Bypass.expect(bypass, "GET", "/api/public/v2/prompts/ttl-test", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.resp(
