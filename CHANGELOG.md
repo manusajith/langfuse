@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Relaxed Elixir version constraint from `~> 1.19` to `~> 1.17` to support projects on Elixir 1.17 and 1.18
+
+### Added
+- GitHub Actions CI with matrix testing across Elixir 1.17/OTP 26, 1.18/OTP 27, and 1.19/OTP 28
+
 ## [0.1.0] - 2025-11-29
 
 ### Added
