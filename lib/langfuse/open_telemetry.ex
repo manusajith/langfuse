@@ -122,7 +122,7 @@ defmodule Langfuse.OpenTelemetry do
 
   """
 
-  alias Langfuse.OpenTelemetry.{AttributeMapper, TraceContext, Setup}
+  alias Langfuse.OpenTelemetry.{AttributeMapper, Setup, TraceContext}
 
   @doc """
   Extracts trace and span IDs from an OpenTelemetry span context.

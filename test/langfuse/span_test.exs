@@ -2,6 +2,7 @@ defmodule Langfuse.SpanTest do
   use ExUnit.Case, async: false
 
   alias Langfuse.{Span, Trace}
+  alias Langfuse.Test.Helpers
 
   describe "new/2" do
     test "creates a span from a trace" do
@@ -121,7 +122,7 @@ defmodule Langfuse.SpanTest do
   describe "observation types" do
     test "creates span with agent type" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "agent-span", type: :agent)
         end)
@@ -132,7 +133,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with tool type" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "tool-span", type: :tool)
         end)
@@ -143,7 +144,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with chain type" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "chain-span", type: :chain)
         end)
@@ -154,7 +155,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with retriever type" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "retriever-span", type: :retriever)
         end)
@@ -165,7 +166,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with embedding type" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "embedding-span", type: :embedding)
         end)
@@ -176,7 +177,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with evaluator type" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "evaluator-span", type: :evaluator)
         end)
@@ -187,7 +188,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with guardrail type" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "guardrail-span", type: :guardrail)
         end)
@@ -198,7 +199,7 @@ defmodule Langfuse.SpanTest do
 
     test "defaults to span type" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "default-span")
         end)
@@ -211,7 +212,7 @@ defmodule Langfuse.SpanTest do
   describe "level conversions" do
     test "creates span with debug level" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "debug-span", level: :debug)
         end)
@@ -222,7 +223,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with default level" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "default-level-span", level: :default)
         end)
@@ -233,7 +234,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with error level" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "error-span", level: :error)
         end)
@@ -244,7 +245,7 @@ defmodule Langfuse.SpanTest do
 
     test "creates span with warning level" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "warning-span", level: :warning)
         end)
@@ -257,7 +258,7 @@ defmodule Langfuse.SpanTest do
   describe "version field" do
     test "includes version in event body" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "versioned-span", version: "1.2.3")
         end)
@@ -270,7 +271,7 @@ defmodule Langfuse.SpanTest do
   describe "event capture" do
     test "new/2 sends span-create event" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "test-span")
         end)
@@ -282,7 +283,7 @@ defmodule Langfuse.SpanTest do
 
     test "update/2 sends span-update event" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           span = Span.new(trace, name: "test-span")
           Span.update(span, output: %{result: "done"})
@@ -295,7 +296,7 @@ defmodule Langfuse.SpanTest do
 
     test "end_span/1 sends span-update event with end_time" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           span = Span.new(trace, name: "test-span")
           Span.end_span(span)
@@ -308,7 +309,7 @@ defmodule Langfuse.SpanTest do
 
     test "events include required fields" do
       {_span, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Span.new(trace, name: "test-span")
         end)

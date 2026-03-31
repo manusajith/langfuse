@@ -29,7 +29,7 @@ defmodule Langfuse.Event do
 
   """
 
-  alias Langfuse.{Ingestion, Trace, Span}
+  alias Langfuse.{Ingestion, Span, Trace}
 
   @typedoc "Log level for the observation."
   @type level :: :debug | :default | :warning | :error

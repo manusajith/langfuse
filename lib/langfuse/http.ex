@@ -112,10 +112,10 @@ defmodule Langfuse.HTTP do
   def get(path, params \\ []) do
     config = Config.get()
 
-    unless Config.configured?() do
-      {:error, :not_configured}
-    else
+    if Config.configured?() do
       request(:get, path, config, params: params)
+    else
+      {:error, :not_configured}
     end
   end
 
@@ -129,10 +129,10 @@ defmodule Langfuse.HTTP do
   def post(path, body) do
     config = Config.get()
 
-    unless Config.configured?() do
-      {:error, :not_configured}
-    else
+    if Config.configured?() do
       request(:post, path, config, json: body)
+    else
+      {:error, :not_configured}
     end
   end
 

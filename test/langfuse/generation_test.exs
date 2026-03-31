@@ -1,7 +1,8 @@
 defmodule Langfuse.GenerationTest do
   use ExUnit.Case, async: false
 
-  alias Langfuse.{Generation, Trace, Span}
+  alias Langfuse.{Generation, Span, Trace}
+  alias Langfuse.Test.Helpers
 
   describe "new/2" do
     test "creates a generation from a trace" do
@@ -139,7 +140,7 @@ defmodule Langfuse.GenerationTest do
   describe "event capture" do
     test "new/2 sends generation-create event" do
       {_gen, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Generation.new(trace, name: "llm-call", model: "gpt-4")
         end)
@@ -152,7 +153,7 @@ defmodule Langfuse.GenerationTest do
 
     test "update/2 sends generation-update event" do
       {_gen, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           gen = Generation.new(trace, name: "llm-call")
           Generation.update(gen, output: %{content: "response"})
@@ -165,7 +166,7 @@ defmodule Langfuse.GenerationTest do
 
     test "end_generation/1 sends generation-update event with end_time" do
       {_gen, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           gen = Generation.new(trace, name: "llm-call")
           Generation.end_generation(gen)
@@ -178,7 +179,7 @@ defmodule Langfuse.GenerationTest do
 
     test "events include required fields" do
       {_gen, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Trace.new(name: "test-trace")
           Generation.new(trace, name: "llm-call")
         end)

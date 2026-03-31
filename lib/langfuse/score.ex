@@ -48,7 +48,7 @@ defmodule Langfuse.Score do
 
   """
 
-  alias Langfuse.{Ingestion, Trace, Span, Generation}
+  alias Langfuse.{Generation, Ingestion, Span, Trace}
 
   @typedoc "Score data type classification."
   @type data_type :: :numeric | :categorical | :boolean

@@ -206,13 +206,11 @@ defmodule Langfuse.OpenTelemetry.Setup do
   end
 
   defp safe_get_tracer_provider do
-    try do
-      :otel_tracer_provider.resource()
-      true
-    rescue
-      _ -> false
-    catch
-      _, _ -> false
-    end
+    :otel_tracer_provider.resource()
+    true
+  rescue
+    _ -> false
+  catch
+    _, _ -> false
   end
 end

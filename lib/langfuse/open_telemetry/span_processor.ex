@@ -61,8 +61,8 @@ defmodule Langfuse.OpenTelemetry.SpanProcessor do
 
   @behaviour :otel_span_processor
 
-  alias Langfuse.OpenTelemetry.AttributeMapper
   alias Langfuse.Ingestion
+  alias Langfuse.OpenTelemetry.AttributeMapper
 
   @typedoc "Processor configuration options."
   @type config :: %{
@@ -119,7 +119,7 @@ defmodule Langfuse.OpenTelemetry.SpanProcessor do
     parent_span_id_hex = format_span_id(parent_span_id)
 
     mapped_attrs = AttributeMapper.map_attributes(attributes)
-    is_generation = is_generation?(attributes, mapped_attrs)
+    is_generation = generation?(attributes, mapped_attrs)
     is_root = is_nil(parent_span_id) or parent_span_id == 0
 
     if is_root do
@@ -170,7 +170,7 @@ defmodule Langfuse.OpenTelemetry.SpanProcessor do
 
   defp normalize_span(_), do: nil
 
-  defp is_generation?(attributes, mapped_attrs) do
+  defp generation?(attributes, mapped_attrs) do
     Map.has_key?(mapped_attrs, :model) or
       has_genai_attribute?(attributes)
   end

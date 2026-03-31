@@ -365,19 +365,15 @@ defmodule Langfuse.Prompt do
   end
 
   defp delete_cache_key(key) do
-    try do
-      :ets.delete(:langfuse_prompt_cache, key)
-    rescue
-      ArgumentError -> :ok
-    end
+    :ets.delete(:langfuse_prompt_cache, key)
+  rescue
+    ArgumentError -> :ok
   end
 
   defp delete_cache_by_name(name) do
-    try do
-      :ets.match_delete(:langfuse_prompt_cache, {{name, :_, :_}, :_, :_})
-    rescue
-      ArgumentError -> :ok
-    end
+    :ets.match_delete(:langfuse_prompt_cache, {{name, :_, :_}, :_, :_})
+  rescue
+    ArgumentError -> :ok
   end
 
   defp get_cached(key) do

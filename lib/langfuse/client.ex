@@ -999,9 +999,7 @@ defmodule Langfuse.Client do
   def delete(path) do
     config = Config.get()
 
-    unless Config.configured?() do
-      {:error, :not_configured}
-    else
+    if Config.configured?() do
       url = config.host <> path
 
       case Req.delete(url, auth: {:basic, "#{config.public_key}:#{config.secret_key}"}) do
@@ -1014,6 +1012,8 @@ defmodule Langfuse.Client do
         {:error, reason} ->
           {:error, reason}
       end
+    else
+      {:error, :not_configured}
     end
   end
 
@@ -1030,9 +1030,7 @@ defmodule Langfuse.Client do
   def patch(path, body) do
     config = Config.get()
 
-    unless Config.configured?() do
-      {:error, :not_configured}
-    else
+    if Config.configured?() do
       url = config.host <> path
 
       case Req.patch(url,
@@ -1048,6 +1046,8 @@ defmodule Langfuse.Client do
         {:error, reason} ->
           {:error, reason}
       end
+    else
+      {:error, :not_configured}
     end
   end
 
