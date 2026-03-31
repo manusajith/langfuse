@@ -152,7 +152,11 @@ defmodule Langfuse.Client do
   @spec update_prompt_labels(String.t(), pos_integer(), keyword()) :: response()
   def update_prompt_labels(name, version, opts) do
     body = %{labels: Keyword.fetch!(opts, :labels)}
-    patch("/api/public/v2/prompts/#{URI.encode(name)}/versions/#{version}", body)
+
+    patch(
+      "/api/public/v2/prompts/#{URI.encode(name, &URI.char_unreserved?/1)}/versions/#{version}",
+      body
+    )
   end
 
   @doc """
@@ -167,6 +171,7 @@ defmodule Langfuse.Client do
 
     * `:version` - Specific version number to fetch
     * `:label` - Label to fetch (e.g., "production", "latest")
+    * `:resolve` - Whether to resolve prompt dependencies before returning (defaults to `true` on server)
 
   ## Examples
 
@@ -184,8 +189,9 @@ defmodule Langfuse.Client do
       []
       |> maybe_add_param(:version, opts[:version])
       |> maybe_add_param(:label, opts[:label])
+      |> maybe_add_param(:resolve, opts[:resolve])
 
-    get("/api/public/v2/prompts/#{URI.encode(name)}", params)
+    get("/api/public/v2/prompts/#{URI.encode(name, &URI.char_unreserved?/1)}", params)
   end
 
   @doc """
@@ -199,7 +205,7 @@ defmodule Langfuse.Client do
   """
   @spec get_dataset(String.t()) :: response()
   def get_dataset(name) do
-    get("/api/public/v2/datasets/#{URI.encode(name)}")
+    get("/api/public/v2/datasets/#{URI.encode(name, &URI.char_unreserved?/1)}")
   end
 
   @doc """
@@ -837,7 +843,7 @@ defmodule Langfuse.Client do
   """
   @spec delete_dataset(String.t()) :: :ok | {:error, term()}
   def delete_dataset(name) do
-    delete("/api/public/v2/datasets/#{URI.encode(name)}")
+    delete("/api/public/v2/datasets/#{URI.encode(name, &URI.char_unreserved?/1)}")
   end
 
   @doc """

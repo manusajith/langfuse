@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Langfuse.Prompt.get/2` now returns prompt data correctly; the underlying HTTP call was sending the prompt name as a query parameter instead of in the URL path
+
 ### Changed
 - Relaxed Elixir version constraint from `~> 1.19` to `~> 1.17` to support projects on Elixir 1.17 and 1.18
 
 ### Added
+- `:resolve` option for `Langfuse.Prompt.get/2`, `Langfuse.Prompt.fetch/2`, `Langfuse.Client.get_prompt/2`, and `Langfuse.HTTP.get_prompt/2` to control server-side prompt dependency resolution
 - GitHub Actions CI with matrix testing across Elixir 1.17/OTP 26, 1.18/OTP 27, and 1.19/OTP 28
 
 ## [0.1.0] - 2025-11-29

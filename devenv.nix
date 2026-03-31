@@ -8,6 +8,7 @@
 
   packages = [
     pkgs.git
+    pkgs.nodejs
   ];
 
   enterShell = ''

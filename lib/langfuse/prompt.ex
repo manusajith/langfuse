@@ -84,6 +84,7 @@ defmodule Langfuse.Prompt do
 
     * `:version` - Specific version number to fetch.
     * `:label` - Label to fetch (e.g., "production", "latest").
+    * `:resolve` - Whether to resolve prompt dependencies before returning (defaults to `true` on server).
     * `:cache_ttl` - Cache TTL in milliseconds. Defaults to 60,000 (1 minute).
     * `:fallback` - Fallback prompt struct or template to use if fetch fails.
       Can be a `%Langfuse.Prompt{}` struct or a string template.
@@ -188,6 +189,7 @@ defmodule Langfuse.Prompt do
 
     * `:version` - Specific version number to fetch.
     * `:label` - Label to fetch (e.g., "production", "latest").
+    * `:resolve` - Whether to resolve prompt dependencies before returning (defaults to `true` on server).
 
   ## Examples
 
@@ -324,10 +326,8 @@ defmodule Langfuse.Prompt do
   """
   @spec invalidate(String.t(), keyword()) :: :ok
   def invalidate(name, opts \\ []) do
-    key = cache_key(name, opts)
-
     if opts[:version] || opts[:label] do
-      delete_cache_key(key)
+      delete_cache_entries(name, opts[:version], opts[:label])
     else
       delete_cache_by_name(name)
     end
@@ -361,20 +361,27 @@ defmodule Langfuse.Prompt do
   defp cache_key(name, opts) do
     version = opts[:version]
     label = opts[:label]
-    {name, version, label}
+    resolve = if(opts[:resolve] == false, do: false, else: true)
+    {name, version, label, resolve}
   end
 
-  defp delete_cache_key(key) do
-    :ets.delete(:langfuse_prompt_cache, key)
+  defp delete_cache_entries(name, version, label) do
+    :ets.match_delete(
+      :langfuse_prompt_cache,
+      {{name, cache_match(version), cache_match(label), :_}, :_, :_}
+    )
   rescue
     ArgumentError -> :ok
   end
 
   defp delete_cache_by_name(name) do
-    :ets.match_delete(:langfuse_prompt_cache, {{name, :_, :_}, :_, :_})
+    :ets.match_delete(:langfuse_prompt_cache, {{name, :_, :_, :_}, :_, :_})
   rescue
     ArgumentError -> :ok
   end
+
+  defp cache_match(nil), do: :_
+  defp cache_match(value), do: value
 
   defp get_cached(key) do
     case :ets.lookup(:langfuse_prompt_cache, key) do
