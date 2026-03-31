@@ -3,6 +3,8 @@ defmodule LangfuseTest do
 
   import ExUnit.CaptureLog
 
+  alias Langfuse.Test.Helpers
+
   describe "update/2" do
     test "updates a span" do
       capture_log(fn ->
@@ -107,7 +109,7 @@ defmodule LangfuseTest do
   describe "integration workflow" do
     test "complete trace with span and generation" do
       {_result, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Langfuse.trace(name: "integration-test", user_id: "test-user")
 
           span = Langfuse.span(trace, name: "retrieval", input: %{query: "test"})
@@ -143,7 +145,7 @@ defmodule LangfuseTest do
 
     test "nested spans" do
       {_result, events} =
-        Langfuse.Test.Helpers.capture_events(fn ->
+        Helpers.capture_events(fn ->
           trace = Langfuse.trace(name: "nested-test")
 
           outer_span = Langfuse.span(trace, name: "outer")

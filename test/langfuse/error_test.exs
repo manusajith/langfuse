@@ -1,7 +1,7 @@
 defmodule Langfuse.ErrorTest do
   use ExUnit.Case, async: true
 
-  alias Langfuse.Error.{ConfigError, APIError, ValidationError, PromptNotFoundError}
+  alias Langfuse.Error.{APIError, ConfigError, PromptNotFoundError, ValidationError}
 
   describe "ConfigError" do
     test "message with key and custom message" do

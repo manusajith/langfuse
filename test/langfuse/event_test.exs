@@ -1,7 +1,7 @@
 defmodule Langfuse.EventTest do
   use ExUnit.Case, async: true
 
-  alias Langfuse.{Event, Trace, Span}
+  alias Langfuse.{Event, Span, Trace}
 
   describe "new/2" do
     test "creates an event from a trace" do

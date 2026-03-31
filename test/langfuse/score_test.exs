@@ -1,7 +1,7 @@
 defmodule Langfuse.ScoreTest do
   use ExUnit.Case, async: false
 
-  alias Langfuse.{Score, Trace, Span, Generation}
+  alias Langfuse.{Generation, Score, Span, Trace}
   import Langfuse.Test.Helpers
 
   describe "create/2" do
