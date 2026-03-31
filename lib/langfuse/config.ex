@@ -27,6 +27,7 @@ defmodule Langfuse.Config do
     * `LANGFUSE_SECRET_KEY` - API secret key
     * `LANGFUSE_HOST` - Langfuse server URL
     * `LANGFUSE_ENVIRONMENT` - Environment name (e.g., "production", "staging")
+    * `LANGFUSE_CACERTFILE` - Path to a custom CA certificate PEM file
 
   ## Configuration Options
 
@@ -46,6 +47,8 @@ defmodule Langfuse.Config do
     * `:debug` - Whether debug logging is enabled. Defaults to `false`.
       When enabled, logs detailed information about HTTP requests, batching,
       and event processing. Useful for troubleshooting integration issues.
+    * `:cacertfile` - Path to a custom CA certificate PEM file for
+      self-hosted Langfuse instances with self-signed certificates.
 
   ## Self-Hosted Langfuse
 
@@ -54,7 +57,8 @@ defmodule Langfuse.Config do
       config :langfuse,
         host: "https://langfuse.mycompany.com",
         public_key: "pk-...",
-        secret_key: "sk-..."
+        secret_key: "sk-...",
+        cacertfile: "/etc/ssl/langfuse-root-ca.pem"
 
   """
 
@@ -74,7 +78,8 @@ defmodule Langfuse.Config do
     :batch_size,
     :max_retries,
     :enabled,
-    :debug
+    :debug,
+    :cacertfile
   ]
 
   @typedoc """
@@ -92,7 +97,8 @@ defmodule Langfuse.Config do
           batch_size: pos_integer(),
           max_retries: non_neg_integer(),
           enabled: boolean(),
-          debug: boolean()
+          debug: boolean(),
+          cacertfile: String.t() | nil
         }
 
   @doc false
@@ -227,7 +233,8 @@ defmodule Langfuse.Config do
       batch_size: get_integer(:batch_size) || @default_batch_size,
       max_retries: get_integer(:max_retries) || @default_max_retries,
       enabled: get_boolean(:enabled, true),
-      debug: get_boolean(:debug, false)
+      debug: get_boolean(:debug, false),
+      cacertfile: get_value(:cacertfile, "LANGFUSE_CACERTFILE")
     }
   end
 

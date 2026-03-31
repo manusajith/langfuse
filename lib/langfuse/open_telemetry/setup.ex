@@ -46,6 +46,8 @@ defmodule Langfuse.OpenTelemetry.Setup do
     * `:host` - Langfuse host (default: from config)
     * `:public_key` - Public API key (default: from config)
     * `:secret_key` - Secret API key (default: from config)
+    * `:cacertfile` - Path to a PEM-encoded CA certificate file for self-hosted
+      Langfuse instances with self-signed certificates (default: from config)
 
   ## Examples
 
@@ -56,7 +58,8 @@ defmodule Langfuse.OpenTelemetry.Setup do
       config :opentelemetry_exporter,
         otlp_protocol: config[:otlp_protocol],
         otlp_endpoint: config[:otlp_endpoint],
-        otlp_headers: config[:otlp_headers]
+        otlp_headers: config[:otlp_headers],
+        ssl_options: config[:ssl_options]
 
   """
   @spec exporter_config(keyword()) :: keyword()
@@ -66,6 +69,7 @@ defmodule Langfuse.OpenTelemetry.Setup do
     host = Keyword.get(opts, :host, config.host || "https://cloud.langfuse.com")
     public_key = Keyword.get(opts, :public_key, config.public_key)
     secret_key = Keyword.get(opts, :secret_key, config.secret_key)
+    cacertfile = Keyword.get(opts, :cacertfile, config.cacertfile)
 
     auth = Base.encode64("#{public_key}:#{secret_key}")
 
@@ -74,6 +78,7 @@ defmodule Langfuse.OpenTelemetry.Setup do
       otlp_endpoint: "#{host}/api/public/otel/v1/traces",
       otlp_headers: [{"Authorization", "Basic #{auth}"}]
     ]
+    |> maybe_put(:ssl_options, exporter_ssl_options(cacertfile))
   end
 
   @doc """
@@ -87,6 +92,8 @@ defmodule Langfuse.OpenTelemetry.Setup do
     * `:host` - Langfuse host (default: from config)
     * `:public_key` - Public API key (default: from config)
     * `:secret_key` - Secret API key (default: from config)
+    * `:cacertfile` - Path to a PEM-encoded CA certificate file for self-hosted
+      Langfuse instances with self-signed certificates (default: from config)
 
   ## Examples
 
@@ -106,6 +113,7 @@ defmodule Langfuse.OpenTelemetry.Setup do
     Application.put_env(:opentelemetry_exporter, :otlp_protocol, config[:otlp_protocol])
     Application.put_env(:opentelemetry_exporter, :otlp_endpoint, config[:otlp_endpoint])
     Application.put_env(:opentelemetry_exporter, :otlp_headers, config[:otlp_headers])
+    put_optional_env(:opentelemetry_exporter, :ssl_options, config[:ssl_options])
 
     :ok
   end
@@ -213,4 +221,13 @@ defmodule Langfuse.OpenTelemetry.Setup do
   catch
     _, _ -> false
   end
+
+  defp exporter_ssl_options(nil), do: nil
+  defp exporter_ssl_options(path) when is_binary(path), do: [cacertfile: path]
+
+  defp maybe_put(config, _key, nil), do: config
+  defp maybe_put(config, key, value), do: Keyword.put(config, key, value)
+
+  defp put_optional_env(app, key, nil), do: Application.delete_env(app, key)
+  defp put_optional_env(app, key, value), do: Application.put_env(app, key, value)
 end

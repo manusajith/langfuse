@@ -160,6 +160,7 @@ defmodule Langfuse.HTTP do
         receive_timeout: 30_000
       ]
       |> Keyword.merge(retry_options(config))
+      |> Keyword.merge(ssl_options(config))
       |> Keyword.merge(opts)
       |> Req.request()
       |> handle_response()
@@ -177,6 +178,14 @@ defmodule Langfuse.HTTP do
 
     result
   end
+
+  @doc false
+  @spec ssl_options(Config.t()) :: keyword()
+  def ssl_options(%{cacertfile: path}) when is_binary(path) do
+    [connect_options: [transport_opts: [cacertfile: path]]]
+  end
+
+  def ssl_options(_config), do: []
 
   defp retry_options(config) do
     [

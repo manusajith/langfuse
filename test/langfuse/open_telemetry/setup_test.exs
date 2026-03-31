@@ -1,7 +1,39 @@
 defmodule Langfuse.OpenTelemetry.SetupTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
+  alias Langfuse.Config
   alias Langfuse.OpenTelemetry.Setup
+
+  setup do
+    original_cacertfile = Application.get_env(:langfuse, :cacertfile)
+
+    original_exporter_config = %{
+      otlp_protocol: Application.get_env(:opentelemetry_exporter, :otlp_protocol),
+      otlp_endpoint: Application.get_env(:opentelemetry_exporter, :otlp_endpoint),
+      otlp_headers: Application.get_env(:opentelemetry_exporter, :otlp_headers),
+      ssl_options: Application.get_env(:opentelemetry_exporter, :ssl_options)
+    }
+
+    on_exit(fn ->
+      if original_cacertfile do
+        Application.put_env(:langfuse, :cacertfile, original_cacertfile)
+      else
+        Application.delete_env(:langfuse, :cacertfile)
+      end
+
+      Config.reload()
+
+      Enum.each(original_exporter_config, fn {key, value} ->
+        if value do
+          Application.put_env(:opentelemetry_exporter, key, value)
+        else
+          Application.delete_env(:opentelemetry_exporter, key)
+        end
+      end)
+    end)
+
+    :ok
+  end
 
   describe "exporter_config/1" do
     test "returns OTLP configuration with defaults" do
@@ -29,6 +61,21 @@ defmodule Langfuse.OpenTelemetry.SetupTest do
       expected_auth = "Basic " <> Base.encode64("pk-test:sk-test")
       assert [{"Authorization", ^expected_auth}] = config[:otlp_headers]
     end
+
+    test "uses configured cacertfile as exporter ssl_options" do
+      Application.put_env(:langfuse, :cacertfile, "/etc/ssl/langfuse-root-ca.pem")
+      Config.reload()
+
+      config = Setup.exporter_config()
+
+      assert config[:ssl_options] == [cacertfile: "/etc/ssl/langfuse-root-ca.pem"]
+    end
+
+    test "allows overriding cacertfile explicitly" do
+      config = Setup.exporter_config(cacertfile: "/tmp/custom-root-ca.pem")
+
+      assert config[:ssl_options] == [cacertfile: "/tmp/custom-root-ca.pem"]
+    end
   end
 
   describe "configure_exporter/1" do
@@ -46,6 +93,31 @@ defmodule Langfuse.OpenTelemetry.SetupTest do
 
       headers = Application.get_env(:opentelemetry_exporter, :otlp_headers)
       assert [{"Authorization", _}] = headers
+    end
+
+    test "sets ssl_options when cacertfile is configured" do
+      Setup.configure_exporter(
+        host: "https://test.langfuse.com",
+        public_key: "pk-test",
+        secret_key: "sk-test",
+        cacertfile: "/etc/ssl/langfuse-root-ca.pem"
+      )
+
+      assert Application.get_env(:opentelemetry_exporter, :ssl_options) == [
+               cacertfile: "/etc/ssl/langfuse-root-ca.pem"
+             ]
+    end
+
+    test "clears stale ssl_options when no cacertfile is configured" do
+      Application.put_env(:opentelemetry_exporter, :ssl_options, cacertfile: "/tmp/stale.pem")
+
+      Setup.configure_exporter(
+        host: "https://test.langfuse.com",
+        public_key: "pk-test",
+        secret_key: "sk-test"
+      )
+
+      assert Application.get_env(:opentelemetry_exporter, :ssl_options) == nil
     end
   end
 

@@ -13,7 +13,8 @@ defmodule Langfuse.ConfigTest do
       batch_size: Application.get_env(:langfuse, :batch_size),
       max_retries: Application.get_env(:langfuse, :max_retries),
       enabled: Application.get_env(:langfuse, :enabled),
-      debug: Application.get_env(:langfuse, :debug)
+      debug: Application.get_env(:langfuse, :debug),
+      cacertfile: Application.get_env(:langfuse, :cacertfile)
     }
 
     on_exit(fn ->
@@ -245,6 +246,33 @@ defmodule Langfuse.ConfigTest do
 
       System.delete_env("LANGFUSE_ENVIRONMENT")
       Config.reload()
+    end
+
+    test "env var overrides app config for cacertfile" do
+      Application.put_env(:langfuse, :cacertfile, "/app/ca.pem")
+      System.put_env("LANGFUSE_CACERTFILE", "/env/ca.pem")
+      Config.reload()
+
+      assert Config.get(:cacertfile) == "/env/ca.pem"
+
+      System.delete_env("LANGFUSE_CACERTFILE")
+      Config.reload()
+    end
+  end
+
+  describe "cacertfile" do
+    test "returns nil by default" do
+      Application.delete_env(:langfuse, :cacertfile)
+      Config.reload()
+
+      assert Config.get(:cacertfile) == nil
+    end
+
+    test "returns configured path" do
+      Application.put_env(:langfuse, :cacertfile, "/path/to/ca-cert.pem")
+      Config.reload()
+
+      assert Config.get(:cacertfile) == "/path/to/ca-cert.pem"
     end
   end
 end
