@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-31
+
 ### Fixed
 - `Langfuse.Prompt.get/2` now returns prompt data correctly; the underlying HTTP call was sending the prompt name as a query parameter instead of in the URL path
 
